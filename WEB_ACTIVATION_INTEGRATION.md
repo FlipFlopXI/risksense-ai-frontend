@@ -1,0 +1,7 @@
+# Flutter to website activation
+
+Patient registration and sign-in now route through `PatientAccessGate`. It asks FastAPI `GET /api/v1/access/status` for the current patient's own entitlement. The dashboard opens only when `active` and `clinician_linked` are both true. The gate requests `POST /api/v1/access/activation-session` with the authenticated patient token and launches the returned `activation_url` externally using `url_launcher`. Flutter does not construct or persist the handoff token. On resume, the gate rechecks FastAPI; the website screen is never treated as proof of access. The patient can also tap **Refresh access status**.
+
+Android and iOS register `risksense://activation-return` for development. The website may set `NEXT_PUBLIC_MOBILE_RETURN_URL` to that URL, or omit it and ask the patient to switch back to the app. A production HTTPS App Link / Universal Link requires the final domain and its Android Digital Asset Links and Apple association files, plus device verification. Neither a final domain nor a verified production return link exists locally. The app's resume check works even when the user switches back manually.
+
+Backend requirements: run the additive activation-session migration, set `WEBAPP_BASE_URL` to the exact website origin, configure `CORS_ORIGINS`, and explicitly enable `DEMO_ACTIVATION_ENABLED=true` only for the intended demonstration environment. The default remains disabled. No real payment or external insurer verification occurs.
