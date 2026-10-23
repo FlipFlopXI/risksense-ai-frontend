@@ -10,6 +10,7 @@ class SecureBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (sessionText == null) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -24,7 +25,7 @@ class SecureBadge extends StatelessWidget {
               size: 13, color: AppColors.primaryBlue),
           const SizedBox(width: 5),
           Text(
-            sessionText ?? 'Zero Trust Active',
+            sessionText!,
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -197,6 +198,7 @@ class StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String? subtitle;
+  final bool compact;
 
   const StatCard({
     super.key,
@@ -205,10 +207,39 @@ class StatCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.subtitle,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: AppColors.cardWhite,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 7),
+          SizedBox(height: 40, width: double.infinity,
+            child: FittedBox(alignment: Alignment.centerLeft,
+              fit: BoxFit.scaleDown,
+              child: Text(value, style: TextStyle(fontSize: 22,
+                fontWeight: FontWeight.w700, color: color)))),
+          const SizedBox(height: 10),
+          Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary)),
+          if (subtitle != null) ...[
+            const SizedBox(height: 3),
+            Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
+          ],
+        ]),
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -216,28 +247,26 @@ class StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 29,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
+          Row(children: [
+            Container(
+              width: 38,
+              height: 29,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 2),
+            const Spacer(),
+            Flexible(child: Text(value, textAlign: TextAlign.end,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700,
+                color: color))),
+          ]),
+          const SizedBox(height: 10),
           Text(
             title,
             style: const TextStyle(
@@ -254,6 +283,7 @@ class StatCard extends StatelessWidget {
             ),
           ],
         ],
+        ),
       ),
     );
   }
@@ -312,14 +342,17 @@ class FeatureImpactBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              Expanded(child: Text(
                 feature,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
-              ),
+              )),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -419,19 +452,22 @@ class InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          Expanded(child: Text(
             label,
             style:
                 const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ),
-          Text(
+          )),
+          const SizedBox(width: 8),
+          Flexible(child: Text(
             value,
+            textAlign: TextAlign.end,
+            softWrap: true,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
-          ),
+          )),
         ],
       ),
     );
