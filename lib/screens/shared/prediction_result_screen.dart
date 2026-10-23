@@ -3,6 +3,7 @@ import 'package:medguide/widgets/screen_help.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
+import 'package:medguide/services/clinician_pdf.dart';
 
 class PredictionResultScreen extends StatefulWidget {
   final String condition;
@@ -10,6 +11,7 @@ class PredictionResultScreen extends StatefulWidget {
   final String? riskClassification;
   final String? interpretation;
   final List<Map<String, dynamic>> contributingFactors;
+  final bool clinicianMode;
 
   const PredictionResultScreen({
     super.key,
@@ -18,6 +20,7 @@ class PredictionResultScreen extends StatefulWidget {
     this.riskClassification,
     this.interpretation,
     this.contributingFactors = const [],
+    this.clinicianMode = false,
   });
 
   @override
@@ -302,14 +305,19 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
             child: ElevatedButton.icon(
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
               label: const Text('Generate PDF Report'),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Generating PDF Report...'),
-                    backgroundColor: AppColors.primaryBlue,
-                  ),
-                );
-              },
+              onPressed: widget.clinicianMode ? () => ClinicianPdf.export(context,
+                title: '${widget.condition} demonstration assessment',
+                lines: [
+                  'Estimated model score: ${(widget.riskScore * 100).toStringAsFixed(1)}%',
+                  'Classification: ${widget.riskClassification ?? 'Unavailable'}',
+                  widget.interpretation ?? 'No interpretation available.',
+                  ...widget.contributingFactors.map((factor) =>
+                      '${factor['feature']}: ${factor['direction']} score'),
+                  'This assessment was not saved to a patient record.',
+                ],
+              ) : () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Use the saved prediction report from your history.')),
+              ),
             ),
           ),
           const SizedBox(height: 20),

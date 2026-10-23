@@ -8,12 +8,13 @@ import 'package:medguide/widgets/shared_widgets.dart';
 
 enum _RiskType { all, diabetes, heart }
 
-enum _RiskLevel { all, low, moderate, high }
+enum RiskLevelFilter { all, low, moderate, high }
 
 enum _Order { latest, oldest }
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final RiskLevelFilter initialLevel;
+  const HistoryScreen({super.key, this.initialLevel = RiskLevelFilter.all});
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
@@ -21,12 +22,13 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   late Future<List<Map<String, dynamic>>> _future;
   _RiskType _type = _RiskType.all;
-  _RiskLevel _level = _RiskLevel.all;
+  late RiskLevelFilter _level;
   _Order _order = _Order.latest;
 
   @override
   void initState() {
     super.initState();
+    _level = widget.initialLevel;
     _future = _load();
   }
 
@@ -60,17 +62,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _matches(Map<String, dynamic> value) {
     final target = _target(value);
     final classification = _classification(value);
+    final score = _score(value);
     final typeMatches = switch (_type) {
       _RiskType.all => true,
       _RiskType.diabetes => target.contains('diabetes'),
       _RiskType.heart => target.contains('heart'),
     };
     final levelMatches = switch (_level) {
-      _RiskLevel.all => true,
-      _RiskLevel.low => classification.contains('low'),
-      _RiskLevel.moderate => classification.contains('moderate') ||
-          classification.contains('medium'),
-      _RiskLevel.high => classification.contains('high'),
+      RiskLevelFilter.all => true,
+      RiskLevelFilter.low => score != null ? score < .35 : classification.contains('low'),
+      RiskLevelFilter.moderate => score != null
+          ? score >= .35 && score < .65
+          : classification.contains('moderate') || classification.contains('medium'),
+      RiskLevelFilter.high => score != null ? score >= .65 : classification.contains('high'),
     };
     return typeMatches && levelMatches;
   }
@@ -157,14 +161,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, runSpacing: 8, children: [
-                    _chip('All scores', level == _RiskLevel.all,
-                        () => update(() => level = _RiskLevel.all)),
-                    _chip('Low risk', level == _RiskLevel.low,
-                        () => update(() => level = _RiskLevel.low)),
-                    _chip('Moderate risk', level == _RiskLevel.moderate,
-                        () => update(() => level = _RiskLevel.moderate)),
-                    _chip('High risk', level == _RiskLevel.high,
-                        () => update(() => level = _RiskLevel.high)),
+                    _chip('All scores', level == RiskLevelFilter.all,
+                        () => update(() => level = RiskLevelFilter.all)),
+                    _chip('Low risk', level == RiskLevelFilter.low,
+                        () => update(() => level = RiskLevelFilter.low)),
+                    _chip('Moderate risk', level == RiskLevelFilter.moderate,
+                        () => update(() => level = RiskLevelFilter.moderate)),
+                    _chip('High risk', level == RiskLevelFilter.high,
+                        () => update(() => level = RiskLevelFilter.high)),
                   ]),
                   const SizedBox(height: 18),
                   const Text('Sort order',
@@ -187,7 +191,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     TextButton(
                       onPressed: () => update(() {
                         type = _RiskType.all;
-                        level = _RiskLevel.all;
+                        level = RiskLevelFilter.all;
                         order = _Order.latest;
                       }),
                       child: const Text('Restore defaults'),
@@ -262,7 +266,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   else
                     ...shown.map((prediction) {
                       final score = _score(prediction);
-                      final level = _levelLabel(prediction);
+                      final level = score == null ? _levelLabel(prediction) :
+                          score < .35 ? 'Low Risk' : score < .65 ? 'Moderate Risk' : 'High Risk';
                       return _HistoryCard(
                         condition: _condition(prediction),
                         date: DateFormat('MMM d, yyyy • HH:mm')
