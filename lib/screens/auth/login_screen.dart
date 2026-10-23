@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/screens/auth/register_screen.dart';
 import 'package:medguide/screens/patient/patient_access_gate.dart';
-import 'package:medguide/screens/clinician/clinician_dashboard.dart';
+import 'package:medguide/screens/clinician/clinician_workspace.dart';
 import 'package:medguide/screens/admin/admin_dashboard.dart';
 import 'package:medguide/services/api_client.dart';
 
@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  int _failedAttempts = 0;
+  String? _emailError, _passwordError;
   bool _isLoading = false;
 
   @override
@@ -28,13 +28,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Enter your email and password.'),
-          backgroundColor: AppColors.danger));
-      return;
-    }
+    final email = _emailController.text.trim();
+    setState(() {
+      _emailError = email.isEmpty ? 'Enter your email address.'
+          : !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)
+              ? 'Enter a valid email address.' : null;
+      _passwordError = _passwordController.text.isEmpty ? 'Enter your password.' : null;
+    });
+    if (_emailError != null || _passwordError != null) return;
     setState(() => _isLoading = true);
     try {
       final user = await ApiClient.instance
@@ -51,9 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => destination), (_) => false);
     } on ApiException catch (error) {
       if (!mounted) return;
-      setState(() => _failedAttempts++);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(error.message), backgroundColor: AppColors.danger));
+      if (error.statusCode == 401) {
+        setState(() => _passwordError = 'Email or password is incorrect.');
+      } else {
+        await showDialog<void>(context: context, builder: (dialog) => AlertDialog(
+          title: const Text('Sign-in Unavailable'), content: Text(error.message),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -100,41 +105,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
 
-                // Failed attempts warning
-                if (_failedAttempts >= 3)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.danger.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border:
-                          Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.warning_rounded,
-                            color: AppColors.danger, size: 18),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Multiple failed attempts detected. Account may be temporarily locked.',
-                            style: TextStyle(
-                                fontSize: 12, color: AppColors.danger),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
                 // Email
                 TextField(
                   controller: _emailController,
+                  onChanged: (_) { if (_emailError != null) setState(() => _emailError = null); },
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Email address',
                     hintText: 'you@example.com',
-                    prefixIcon: Icon(Icons.mail_outline_rounded,
+                    errorText: _emailError,
+                    prefixIcon: const Icon(Icons.mail_outline_rounded,
                         size: 20, color: AppColors.textSecondary),
                   ),
                 ),
@@ -143,9 +123,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password
                 TextField(
                   controller: _passwordController,
+                  onChanged: (_) { if (_passwordError != null) setState(() => _passwordError = null); },
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Password',
+                    errorText: _passwordError,
                     hintText: '••••••••',
                     prefixIcon: const Icon(Icons.lock_outline_rounded,
                         size: 20, color: AppColors.textSecondary),

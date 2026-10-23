@@ -28,6 +28,23 @@ class ScreenHelpButton extends StatelessWidget {
   const ScreenHelpButton({super.key, required this.topic});
 
   static const _content = <String, _HelpContent>{
+    'Registration': _HelpContent(
+      'Create your patient account',
+      'Enter your own account details to register. Registration creates a patient account; access to risk analysis still requires an active entitlement.',
+      [
+        _HelpSection('Identity', 'Use accurate details so your account and health information remain linked to you.', [
+          _HelpEntry(Icons.person_outline_rounded, 'Full name', 'Enter your first and last name.'),
+          _HelpEntry(Icons.mail_outline_rounded, 'Email address', 'Use an address you can access. It becomes your sign-in name.'),
+          _HelpEntry(Icons.cake_outlined, 'Date of birth', 'Used to calculate your age. Choose your actual date of birth.'),
+          _HelpEntry(Icons.badge_outlined, 'Gender', 'Choose the option that applies to you. Some analyses require a recorded sex value.'),
+        ]),
+        _HelpSection('Account security', 'Choose a password you have not reused elsewhere.', [
+          _HelpEntry(Icons.lock_outline_rounded, 'Password', 'At least 6 characters, with a capital letter, a number, and a special character.'),
+          _HelpEntry(Icons.verified_user_outlined, 'Confirm password', 'Enter exactly the same password again.'),
+          _HelpEntry(Icons.check_box_outlined, 'Consent', 'Read and accept the health-data notice before creating the account.'),
+        ]),
+      ],
+      'RiskSense AI provides decision support, not a diagnosis. Registration does not verify a subscription or insurance benefit.'),
     'Health Data Input': _HelpContent(
       'Health data input',
       'Review account demographics, record measurements you know, and choose the model to run. Closed sections can be opened as needed. Your entries remain in place when you return from an analysis.',
@@ -361,7 +378,7 @@ class ScreenHelpButton extends StatelessWidget {
             _HelpEntry(Icons.people_alt_outlined, 'Linked patients',
                 'Open patients linked to your approved clinician record.'),
             _HelpEntry(Icons.notification_important_outlined, 'Alerts',
-                'Review displayed high-risk or recent-analysis indicators.'),
+                'Open an alert to view its exact saved risk prediction. View All applies the High alerts patient filter.'),
             _HelpEntry(Icons.history_rounded, 'Recent activity',
                 'See recent authorized patient events.'),
           ]),
@@ -376,7 +393,7 @@ class ScreenHelpButton extends StatelessWidget {
             _HelpEntry(Icons.search_rounded, 'Search',
                 'Find a linked patient by available identity fields.'),
             _HelpEntry(Icons.filter_list_rounded, 'Filters',
-                'Narrow the list by available status or risk indicators.'),
+                'Filter high alerts, Diabetes, Heart Disease, or patients without analyses; sort independently by name or analysis date.'),
             _HelpEntry(Icons.open_in_new_rounded, 'Open record',
                 'Review permitted information for a selected patient.'),
           ]),
@@ -408,10 +425,27 @@ class ScreenHelpButton extends StatelessWidget {
             _HelpEntry(Icons.monitor_heart_outlined, 'Health data',
                 'See available measurements and their timestamps.'),
             _HelpEntry(Icons.analytics_outlined, 'Risk analyses',
-                'Review saved estimates and model context where permitted.'),
+                'Open the latest saved Diabetes or Heart Disease result for its actual factors and input snapshot.'),
+            _HelpEntry(Icons.picture_as_pdf_outlined, 'PDF summary',
+                'Review the POPIA privacy reminder before generating a patient summary PDF.'),
           ]),
         ],
         'Use the full clinical record and professional judgment; model estimates are not diagnoses.'),
+    'Demonstration Analysis': _HelpContent(
+        'Clinician demonstration analysis',
+        'Enter temporary demographic and measurement inputs for a model demonstration.',
+        [
+          _HelpSection('Data and privacy',
+              'The selected model uses only its required fields.', [
+            _HelpEntry(Icons.person_outline_rounded, 'Demographics',
+                'Enter age and sex for the model; ethnicity is optional context and is not a model feature.'),
+            _HelpEntry(Icons.analytics_outlined, 'Analysis',
+                'The result is calculated in memory. No patient, vital, laboratory, or prediction record is created.'),
+            _HelpEntry(Icons.picture_as_pdf_outlined, 'PDF',
+                'The result can be exported locally after the POPIA privacy reminder.'),
+          ]),
+        ],
+        'This demonstration is decision support, not a diagnosis or treatment recommendation.'),
   };
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/screens/patient/patient_access_gate.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/widgets/screen_help.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -21,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedGender = '';
   DateTime? _selectedDOB;
   bool _isLoading = false;
+  final Map<String, String> _errors = {};
 
   @override
   void dispose() {
@@ -48,23 +50,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
     if (picked != null) {
-      setState(() => _selectedDOB = picked);
+      setState(() { _selectedDOB = picked; _errors.remove('dob'); });
     }
   }
 
   Future<void> _handleRegister() async {
     final names = _fullNameController.text.trim().split(RegExp(r'\s+'));
-    if (!_consentGiven ||
-        names.length < 2 ||
-        _selectedDOB == null ||
-        _selectedGender.isEmpty ||
-        _passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text('Complete all required fields and ensure passwords match.'),
-          backgroundColor: AppColors.danger));
-      return;
-    }
+    setState(() {
+      _errors.clear();
+      if (names.length < 2 || names.any((name) => name.isEmpty)) {
+        _errors['name'] = 'Enter your first and last name.';
+      } else if (names.first.length > 100 || names.skip(1).join(' ').length > 100) {
+        _errors['name'] = 'Each name must be 100 characters or fewer.';
+      }
+      final email = _emailController.text.trim();
+      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) _errors['email'] = 'Enter a valid email address.';
+      final password = _passwordController.text;
+      if (password.length < 6 || password.length > 128) {
+        _errors['password'] = 'Use at least 6 characters (maximum 128).';
+      } else if (!RegExp(r'[A-Z]').hasMatch(password) ||
+          !RegExp(r'[0-9]').hasMatch(password) ||
+          !RegExp(r'[^A-Za-z0-9\s]').hasMatch(password)) {
+        _errors['password'] = 'Include a capital letter, number, and special character.';
+      }
+      if (_confirmPasswordController.text != _passwordController.text) _errors['confirm'] = 'Passwords do not match.';
+      if (_selectedDOB == null) _errors['dob'] = 'Select your date of birth.';
+      if (_selectedGender.isEmpty) _errors['gender'] = 'Select a gender option.';
+      if (!_consentGiven) _errors['consent'] = 'Consent is required to create an account.';
+    });
+    if (_errors.isNotEmpty) return;
     setState(() => _isLoading = true);
     try {
       await ApiClient.instance.register({
@@ -83,8 +97,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           (_) => false);
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(error.message), backgroundColor: AppColors.danger));
+      if (error.statusCode == 409) {
+        setState(() => _errors['email'] = 'This email address is already registered.');
+      } else {
+        await showDialog<void>(context: context, builder: (dialog) => AlertDialog(
+          title: const Text('Registration Unavailable'), content: Text(error.message),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -103,6 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Create Account'),
+        actions: const [ScreenHelpButton(topic: 'Registration')],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: AppColors.border, height: 1),
@@ -124,10 +144,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _label('Full Name'),
               TextField(
                 controller: _fullNameController,
+                onChanged: (_) => setState(() => _errors.remove('name')),
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'John Smith',
-                  prefixIcon: Icon(Icons.person_outline_rounded,
+                  errorText: _errors['name'],
+                  prefixIcon: const Icon(Icons.person_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                 ),
               ),
@@ -136,21 +158,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _label('Email Address'),
               TextField(
                 controller: _emailController,
+                onChanged: (_) => setState(() => _errors.remove('email')),
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'john@email.com',
-                  prefixIcon: Icon(Icons.mail_outline_rounded,
+                  errorText: _errors['email'],
+                  prefixIcon: const Icon(Icons.mail_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                 ),
               ),
               const SizedBox(height: 14),
 
               _label('Password'),
+              const Padding(padding: EdgeInsets.only(bottom: 6),
+                child: Text('At least 6 characters, including a capital letter, number, and special character.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
               TextField(
                 controller: _passwordController,
+                onChanged: (_) => setState(() => _errors.remove('password')),
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: '••••••••',
+                  errorText: _errors['password'],
                   prefixIcon: const Icon(Icons.lock_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
@@ -171,9 +200,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _label('Confirm Password'),
               TextField(
                 controller: _confirmPasswordController,
+                onChanged: (_) => setState(() => _errors.remove('confirm')),
                 obscureText: _obscureConfirm,
                 decoration: InputDecoration(
                   hintText: '••••••••',
+                  errorText: _errors['confirm'],
                   prefixIcon: const Icon(Icons.lock_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
@@ -222,6 +253,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
+              if (_errors['dob'] != null) Padding(padding: const EdgeInsets.only(top: 6),
+                child: Text(_errors['dob']!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
               const SizedBox(height: 14),
 
               _label('Gender'),
@@ -232,7 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: GestureDetector(
-                            onTap: () => setState(() => _selectedGender = g),
+                            onTap: () => setState(() { _selectedGender = g; _errors.remove('gender'); }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
@@ -264,6 +297,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     )
                     .toList(),
               ),
+              if (_errors['gender'] != null) Padding(padding: const EdgeInsets.only(top: 6),
+                child: Text(_errors['gender']!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
               const SizedBox(height: 24),
 
               // Consent
@@ -286,7 +321,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Checkbox(
                       value: _consentGiven,
                       onChanged: (v) =>
-                          setState(() => _consentGiven = v ?? false),
+                          setState(() { _consentGiven = v ?? false; _errors.remove('consent'); }),
                       activeColor: AppColors.success,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4)),
@@ -307,13 +342,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
               ),
+              if (_errors['consent'] != null) Padding(padding: const EdgeInsets.only(top: 6),
+                child: Text(_errors['consent']!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
               const SizedBox(height: 24),
 
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed:
-                      (_consentGiven && !_isLoading) ? _handleRegister : null,
+                  onPressed: _isLoading ? null : _handleRegister,
                   child: _isLoading
                       ? const SizedBox(
                           width: 22,
