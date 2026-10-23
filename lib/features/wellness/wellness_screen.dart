@@ -109,9 +109,11 @@ class _WellnessScreenState extends State<_WellnessScreen> {
       await Printing.sharePdf(bytes: await pdf.save(), filename: plan.fileName);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('The PDF could not be generated. Please try again.'),
-        ));
+        showDialog<void>(context: context, builder: (dialog) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('PDF Unavailable'),
+          content: const Text('The PDF could not be generated. Please try again.'),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
