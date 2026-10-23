@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
 import 'package:medguide/widgets/screen_help.dart';
-import 'package:medguide/models/mock_data.dart';
 import 'package:medguide/screens/auth/login_screen.dart';
 import 'package:medguide/screens/admin/admin_profile_screen.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/widgets/app_error_dialog.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -16,6 +18,11 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   int _currentIndex = 0;
+  final _epochs = List<int>.filled(5, 0);
+  void _navigate(int index) => setState(() {
+    _currentIndex = index;
+    _epochs[index]++;
+  });
 
   Future<void> _signOut() async {
     await ApiClient.instance.logout();
@@ -33,16 +40,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _OverviewTab(onNavigate: (i) => setState(() => _currentIndex = i)),
-          const _UserManagementTab(),
-          const _AuditLogsTab(),
-          _ModelTab(onSnackBar: (msg) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(msg), backgroundColor: AppColors.primaryBlue),
-            );
-          }),
-          const AdminProfileScreen(),
+          _OverviewTab(key: ValueKey(_epochs[0]), onNavigate: _navigate),
+          _UserManagementTab(key: ValueKey(_epochs[1])),
+          _AuditLogsTab(key: ValueKey(_epochs[2])),
+          _ModelTab(key: ValueKey(_epochs[3]), onError: (msg) => showAppErrorDialog(context, msg)),
+          AdminProfileScreen(key: ValueKey(_epochs[4])),
         ],
       ),
       bottomNavigationBar: Container(
@@ -52,7 +54,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
+          onTap: _navigate,
           selectedItemColor: AppColors.primaryBlue,
           unselectedItemColor: AppColors.textLight,
           backgroundColor: AppColors.cardWhite,
@@ -118,7 +120,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         color: Colors.white, size: 26),
                   ),
                   const SizedBox(height: 14),
-                  Text(MockUser.adminName,
+                  Text('System Administrator',
                       style: Theme.of(context).textTheme.headlineSmall),
                   const Text('System Administrator',
                       style: TextStyle(
@@ -128,23 +130,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const Divider(),
             _item(Icons.dashboard_outlined, 'Overview', () {
-              setState(() => _currentIndex = 0);
+              _navigate(0);
               Navigator.pop(context);
             }),
             _item(Icons.manage_accounts_outlined, 'User Management', () {
-              setState(() => _currentIndex = 1);
+              _navigate(1);
               Navigator.pop(context);
             }),
             _item(Icons.receipt_long_outlined, 'Audit Logs', () {
-              setState(() => _currentIndex = 2);
+              _navigate(2);
               Navigator.pop(context);
             }),
             _item(Icons.memory_outlined, 'Model Management', () {
-              setState(() => _currentIndex = 3);
+              _navigate(3);
               Navigator.pop(context);
             }),
             _item(Icons.person_outline_rounded, 'Profile', () {
-              setState(() => _currentIndex = 4);
+              _navigate(4);
               Navigator.pop(context);
             }),
             const Spacer(),
@@ -176,9 +178,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends StatefulWidget {
   final void Function(int) onNavigate;
-  const _OverviewTab({required this.onNavigate});
+  const _OverviewTab({super.key, required this.onNavigate});
+
+  @override
+  State<_OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends State<_OverviewTab> {
+  late Future<List<dynamic>> _data = _load();
+  Future<List<dynamic>> _load() => Future.wait([
+    ApiClient.instance.get('/admin/metrics'),
+    ApiClient.instance.get('/admin/audit', query: {'limit': 3}),
+  ]);
+  Future<void> _refresh() async {
+    final next = _load();
+    setState(() => _data = next);
+    await next;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +222,14 @@ class _OverviewTab extends StatelessWidget {
           child: Container(color: AppColors.border, height: 1),
         ),
       ),
-      body: SingleChildScrollView(
+      body: FutureBuilder<List<dynamic>>(future: _data, builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: TextButton(
+          onPressed: _refresh, child: Text('Unable to load admin overview. Tap to retry: ${snapshot.error}')));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final metrics = Map<String, dynamic>.from(snapshot.data![0] as Map);
+        final recent = (snapshot.data![1] as List).whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item)).toList();
+        return RefreshIndicator(onRefresh: _refresh, child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +265,7 @@ class _OverviewTab extends StatelessWidget {
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Colors.white)),
-                      Text('MedSurrogate AI Platform v1.0',
+                      Text('RiskSense AI Administration',
                           style:
                               TextStyle(fontSize: 12, color: Colors.white60)),
                     ],
@@ -249,94 +274,149 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            GridView.count(
-              crossAxisCount: 2,
+            GridView(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, crossAxisSpacing: 12,
+                mainAxisSpacing: 12, mainAxisExtent: 174),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.45,
-              children: const [
+              children: [
                 StatCard(
+                  compact: true,
                   title: 'Total Users',
-                  value: '247',
+                  value: '${metrics['total_users'] ?? 0}',
                   icon: Icons.people_rounded,
                   color: AppColors.primaryBlue,
-                  subtitle: '+12 this week',
+                  subtitle: 'Registered accounts',
                 ),
                 StatCard(
+                  compact: true,
                   title: 'Clinicians',
-                  value: '38',
+                  value: '${metrics['clinician_count'] ?? 0}',
                   icon: Icons.medical_services_rounded,
                   color: AppColors.teal,
-                  subtitle: 'Active accounts',
+                  subtitle: 'Registered clinicians',
                 ),
                 StatCard(
+                  compact: true,
                   title: 'Predictions',
-                  value: '1,842',
+                  value: '${metrics['prediction_count'] ?? 0}',
                   icon: Icons.analytics_rounded,
                   color: AppColors.success,
-                  subtitle: 'This month',
+                  subtitle: 'All time',
                 ),
                 StatCard(
-                  title: 'Security Events',
-                  value: '2',
+                  compact: true,
+                  title: 'Audit Events',
+                  value: '${metrics['audit_event_count'] ?? 0}',
                   icon: Icons.security_rounded,
                   color: AppColors.amber,
-                  subtitle: 'Pending review',
+                  subtitle: 'All recorded events',
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            const SectionHeader(title: 'Recent Activity'),
+            SectionHeader(title: 'Recent Activity', actionLabel: 'View All',
+              onAction: () => widget.onNavigate(2)),
             const SizedBox(height: 12),
-            ...mockAuditLogs.take(3).map((log) => _AuditLogCard(log: log)),
+            if (recent.isEmpty) const Text('No audit activity recorded.'),
+            ...recent.map((log) => _AuditLogCard(log: log)),
           ],
         ),
-      ),
+      ));
+      }),
     );
   }
 }
 
 // ─── User Management Tab ──────────────────────────────────────────────────────
-class _UserManagementTab extends StatelessWidget {
-  const _UserManagementTab();
+class _UserManagementTab extends StatefulWidget {
+  const _UserManagementTab({super.key});
+  @override
+  State<_UserManagementTab> createState() => _UserManagementTabState();
+}
+
+class _UserManagementTabState extends State<_UserManagementTab> {
+  final _search = TextEditingController();
+  String _role = 'All Roles', _status = 'All Statuses';
+  bool _oldest = false;
+  bool _hasMore = true;
+  late Future<List<Map<String, dynamic>>> _users = _load();
+
+  Future<List<Map<String, dynamic>>> _load({int offset = 0}) async =>
+    (await ApiClient.instance.get('/admin/users', query: {
+      'limit': 200, 'offset': offset, 'oldest_first': _oldest,
+      if (_search.text.trim().isNotEmpty) 'search': _search.text.trim(),
+      if (_role != 'All Roles') 'role': _role.toLowerCase(),
+      if (_status != 'All Statuses') 'is_active': _status == 'Active',
+    }) as List).whereType<Map>().map((v) => Map<String, dynamic>.from(v)).toList();
+
+  Future<void> _refresh() async { final next = _load(); setState(() { _users = next; _hasMore = true; }); await next; }
+  Future<void> _more() async {
+    try {
+      final current = await _users;
+      final next = await _load(offset: current.length);
+      if (mounted) setState(() {
+        _users = Future.value([...current, ...next]);
+        _hasMore = next.length == 200;
+      });
+    } on ApiException catch (error) {
+      if (mounted) await showAppErrorDialog(context, error.message);
+    }
+  }
+  @override
+  void dispose() { _search.dispose(); super.dispose(); }
+
+  Future<void> _filters() async {
+    var role = _role, status = _status, oldest = _oldest;
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheet) => StatefulBuilder(builder: (context, update) => SafeArea(
+        child: Padding(padding: const EdgeInsets.all(20), child: Column(
+          mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Filter Users', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, children: [for (final value in ['All Roles', 'Patient', 'Clinician', 'Admin'])
+              ChoiceChip(label: Text(value), selected: role == value,
+                onSelected: (_) => update(() => role = value))]),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, children: [for (final value in ['All Statuses', 'Active', 'Suspended'])
+              ChoiceChip(label: Text(value), selected: status == value,
+                onSelected: (_) => update(() => status = value))]),
+            SwitchListTile(title: const Text('Oldest First'), value: oldest,
+              onChanged: (v) => update(() => oldest = v)),
+            Row(children: [
+              TextButton(onPressed: () { update(() { role = 'All Roles'; status = 'All Statuses'; oldest = false; }); },
+                child: const Text('Reset')),
+              const Spacer(),
+              FilledButton(onPressed: () { _role = role; _status = status; _oldest = oldest;
+                _refresh(); Navigator.pop(sheet); }, child: const Text('Apply')),
+            ]),
+          ],
+        )),
+      )));
+  }
+
+  Future<void> _setActive(Map<String, dynamic> user) async {
+    final active = user['is_active'] == true;
+    final approved = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: Text(active ? 'Suspend User?' : 'Restore User?'),
+      content: Text('${user['email']} will be ${active ? 'suspended' : 'restored'}.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(dialog, true), child: Text(active ? 'Suspend' : 'Restore'))],
+    ));
+    if (approved != true) return;
+    try {
+      await ApiClient.instance.post('/admin/users/${user['id']}/${active ? 'suspend' : 'restore'}');
+      await _refresh();
+    } on ApiException catch (error) {
+      if (mounted) await showAppErrorDialog(context, error.message);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final users = [
-      {
-        'name': 'Sarah Mitchell',
-        'email': 'sarah.m@email.com',
-        'role': 'Patient',
-        'status': 'Active'
-      },
-      {
-        'name': 'Dr. James Osei',
-        'email': 'dr.osei@clinic.com',
-        'role': 'Clinician',
-        'status': 'Active'
-      },
-      {
-        'name': 'Marcus Thompson',
-        'email': 'marcus.t@email.com',
-        'role': 'Patient',
-        'status': 'Active'
-      },
-      {
-        'name': 'Dr. Li Chen',
-        'email': 'dr.chen@clinic.com',
-        'role': 'Clinician',
-        'status': 'Active'
-      },
-      {
-        'name': 'Aisha Patel',
-        'email': 'aisha.p@email.com',
-        'role': 'Patient',
-        'status': 'Suspended'
-      },
-    ];
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -356,22 +436,36 @@ class _UserManagementTab extends StatelessWidget {
       ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: TextField(
-              decoration: InputDecoration(
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [Expanded(child: TextField(
+              controller: _search,
+              onSubmitted: (_) => _refresh(),
+              decoration: const InputDecoration(
                 hintText: 'Search users...',
                 prefixIcon: Icon(Icons.search_rounded,
                     size: 20, color: AppColors.textSecondary),
               ),
-            ),
+            )), IconButton.filledTonal(onPressed: _filters,
+              icon: const Icon(Icons.tune_rounded), tooltip: 'Filter Users')]),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: users.length,
-              itemBuilder: (context, i) => _UserCard(user: users[i]),
-            ),
+            child: FutureBuilder<List<Map<String, dynamic>>>(future: _users,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return Center(child: TextButton(onPressed: _refresh,
+                  child: Text('Unable to load users. Tap to retry: ${snapshot.error}')));
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final users = snapshot.data!;
+                return RefreshIndicator(onRefresh: _refresh, child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: users.isEmpty ? 1 : users.length + (_hasMore && users.length % 200 == 0 ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (users.isEmpty) return const Center(child: Text('No users match these filters.'));
+                    if (i == users.length) return TextButton(onPressed: _more, child: const Text('Load More Users'));
+                    return _UserCard(user: users[i], onAction: () => _setActive(users[i]));
+                  },
+                ));
+              }),
           ),
         ],
       ),
@@ -380,8 +474,84 @@ class _UserManagementTab extends StatelessWidget {
 }
 
 // ─── Audit Logs Tab ───────────────────────────────────────────────────────────
-class _AuditLogsTab extends StatelessWidget {
-  const _AuditLogsTab();
+class _AuditLogsTab extends StatefulWidget {
+  const _AuditLogsTab({super.key});
+  @override
+  State<_AuditLogsTab> createState() => _AuditLogsTabState();
+}
+
+class _AuditLogsTabState extends State<_AuditLogsTab> {
+  final ScrollController _scrollController = ScrollController();
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+  String? _action, _status;
+  bool _oldest = false;
+  bool _hasMore = true;
+  late Future<List<Map<String, dynamic>>> _events = _load();
+  late Future<List<String>> _actions = _loadActions();
+  Future<List<Map<String, dynamic>>> _load({int offset = 0}) async =>
+    (await ApiClient.instance.get('/admin/audit', query: {
+      'limit': 500, 'offset': offset, 'oldest_first': _oldest,
+      if (_action != null) 'action': _action,
+      if (_status != null) 'status': _status,
+    }) as List).whereType<Map>().map((v) => Map<String, dynamic>.from(v)).toList();
+  Future<List<String>> _loadActions() async =>
+    (await ApiClient.instance.get('/admin/audit/actions') as List).map((v) => v.toString()).toList();
+  Future<void> _refresh() async { final next = _load(); setState(() { _events = next; _hasMore = true; }); await next; }
+  Future<void> _more() async {
+    try {
+      final current = await _events;
+      final next = await _load(offset: current.length);
+      if (mounted) setState(() {
+        _events = Future.value([...current, ...next]);
+        _hasMore = next.length == 500;
+      });
+    } on ApiException catch (error) {
+      if (mounted) await showAppErrorDialog(context, error.message);
+    }
+  }
+
+  Future<void> _filters() async {
+    var action = _action, status = _status, oldest = _oldest;
+    List<String> actions;
+    try { actions = await _actions; } on ApiException catch (error) {
+      if (mounted) await showAppErrorDialog(context, error.message);
+      return;
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheet) => StatefulBuilder(builder: (context, update) => SafeArea(
+        child: Padding(padding: const EdgeInsets.all(20), child: Column(
+          mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Filter Audit Logs', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(initialValue: actions.contains(action) ? action : '', isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Action'),
+              items: [const DropdownMenuItem(value: '', child: Text('All Actions')),
+                for (final value in actions) DropdownMenuItem(value: value,
+                  child: Text(value.replaceAll('_', ' '), overflow: TextOverflow.ellipsis))],
+              onChanged: (v) => update(() => action = v == '' ? null : v)),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, children: [for (final value in <String?>[null, 'success', 'failure'])
+              ChoiceChip(label: Text(value == null ? 'All Statuses' :
+                '${value[0].toUpperCase()}${value.substring(1)}'),
+                selected: status == value, onSelected: (_) => update(() => status = value))]),
+            SwitchListTile(title: const Text('Oldest First'), value: oldest,
+              onChanged: (v) => update(() => oldest = v)),
+            Row(children: [TextButton(onPressed: () => update(() {
+              action = null; status = null; oldest = false;
+            }), child: const Text('Reset')), const Spacer(),
+              FilledButton(onPressed: () { _action = action; _status = status; _oldest = oldest;
+                _refresh(); Navigator.pop(sheet); }, child: const Text('Apply'))]),
+          ],
+        )),
+      )));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -392,63 +562,84 @@ class _AuditLogsTab extends StatelessWidget {
         elevation: 0,
         automaticallyImplyLeading: false,
         title: const Text('Audit Logs'),
-        actions: const [
-          SecureBadge(),
-          ScreenHelpButton(topic: 'Audit Logs'),
-          SizedBox(width: 8),
+        actions: [
+          IconButton(onPressed: _filters, icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Filter Audit Logs'),
+          const ScreenHelpButton(topic: 'Audit Logs'),
+          const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(color: AppColors.border, height: 1),
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: mockAuditLogs.length,
-        itemBuilder: (context, i) => _AuditLogCard(log: mockAuditLogs[i]),
-      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(future: _events,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) return Center(child: TextButton(onPressed: _refresh,
+            child: Text('Unable to load audit logs. Tap to retry: ${snapshot.error}')));
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final events = snapshot.data!;
+          return RefreshIndicator(onRefresh: _refresh, child: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: false,
+            trackVisibility: false,
+            child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(16),
+            itemCount: events.isEmpty ? 1 : events.length + (_hasMore && events.length % 500 == 0 ? 1 : 0),
+            itemBuilder: (context, i) {
+              if (events.isEmpty) return const Center(child: Text('No audit events match these filters.'));
+              if (i == events.length) return TextButton(onPressed: _more, child: const Text('Load More Events'));
+              return _AuditLogCard(log: events[i]);
+            },
+          )));
+        }),
     );
   }
 }
 
 // ─── Model Tab ────────────────────────────────────────────────────────────────
-class _ModelTab extends StatelessWidget {
-  final void Function(String) onSnackBar;
-  const _ModelTab({required this.onSnackBar});
+class _ModelTab extends StatefulWidget {
+  final void Function(String) onError;
+  const _ModelTab({super.key, required this.onError});
+  @override
+  State<_ModelTab> createState() => _ModelTabState();
+}
+
+class _ModelTabState extends State<_ModelTab> {
+  late Future<List<Map<String, dynamic>>> _models = _load();
+  late Future<Map<String, dynamic>> _drugStatus = _loadDrugStatus();
+  Future<List<Map<String, dynamic>>> _load() async =>
+    (await ApiClient.instance.get('/admin/models') as List).whereType<Map>()
+      .map((v) => Map<String, dynamic>.from(v)).toList();
+  Future<Map<String, dynamic>> _loadDrugStatus() async =>
+    Map<String, dynamic>.from(await ApiClient.instance.get('/admin/drug-assistant/status'));
+  Future<void> _refresh() async {
+    final next = _load(), drug = _loadDrugStatus();
+    setState(() { _models = next; _drugStatus = drug; });
+    await next;
+  }
+  Future<void> _toggle(Map<String, dynamic> model) async {
+    final active = model['is_active'] == true;
+    final approved = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: Text(active ? 'Pause Model?' : 'Resume Model?'),
+      content: Text('${model['name']} will be ${active ? 'paused' : 'resumed'}.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(dialog, true), child: Text(active ? 'Pause' : 'Resume'))],
+    ));
+    if (approved != true) return;
+    try {
+      await ApiClient.instance.post('/admin/models/${model['id']}/${active ? 'suspend' : 'resume'}');
+      await _refresh();
+    } on ApiException catch (error) { widget.onError(error.message); }
+  }
+  Future<void> _contact() async {
+    final uri = Uri(scheme: 'mailto', path: 'shivenreddyxi@gmail.com');
+    if (!await launchUrl(uri) && mounted) widget.onError('No email app is available on this device.');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final models = [
-      {
-        'name': 'Diabetes Risk Model',
-        'version': 'v2.3.1',
-        'accuracy': '87.4%',
-        'deployed': 'Feb 1, 2026',
-        'status': 'Active',
-      },
-      {
-        'name': 'Heart Disease Model',
-        'version': 'v1.8.0',
-        'accuracy': '83.1%',
-        'deployed': 'Jan 15, 2026',
-        'status': 'Active',
-      },
-      {
-        'name': 'Drug Response Model',
-        'version': 'v1.2.4',
-        'accuracy': '79.6%',
-        'deployed': 'Dec 20, 2025',
-        'status': 'Active',
-      },
-      {
-        'name': 'Diabetes Risk Model',
-        'version': 'v2.3.2-beta',
-        'accuracy': '88.9%',
-        'deployed': 'Feb 18, 2026',
-        'status': 'Staging',
-      },
-    ];
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -466,7 +657,12 @@ class _ModelTab extends StatelessWidget {
           child: Container(color: AppColors.border, height: 1),
         ),
       ),
-      body: SingleChildScrollView(
+      body: FutureBuilder<List<Map<String, dynamic>>>(future: _models, builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: TextButton(onPressed: _refresh,
+          child: Text('Unable to load models. Tap to retry: ${snapshot.error}')));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final models = snapshot.data!;
+        return RefreshIndicator(onRefresh: _refresh, child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -485,7 +681,7 @@ class _ModelTab extends StatelessWidget {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'All model versions are tracked and audited. Only one version may be active per condition.',
+                      'Model status comes from the registry. Activation verifies the supported model artifact.',
                       style:
                           TextStyle(fontSize: 12, color: AppColors.primaryBlue),
                     ),
@@ -494,10 +690,31 @@ class _ModelTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            ...models.map((m) => _ModelCard(model: m, onSnackBar: onSnackBar)),
+            if (models.isEmpty) const Text('No model records are registered.'),
+            ...models.map((m) => _ModelCard(model: m, onToggle: () => _toggle(m))),
+            FutureBuilder<Map<String, dynamic>>(future: _drugStatus,
+              builder: (context, status) {
+                if (status.hasError) return const ListTile(title: Text('Drug Assistant Runtime'),
+                  subtitle: Text('Runtime status unavailable. Pull to refresh.'));
+                if (!status.hasData) return const LinearProgressIndicator();
+                final info = status.data!;
+                return Card(child: Padding(padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Drug Assistant Runtime', style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 6),
+                    Text('Status: ${info['runtime_status']} • Integrity: ${info['artifact_integrity_status']}'),
+                    Text('Catalogue: ${info['catalogue_medication_count']} medications • Published evidence: ${info['reviewed_evidence_count']} records'),
+                    const Text('Evidence-gated assistant; managed separately from prediction models.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ])));
+              }),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: _contact,
+              icon: const Icon(Icons.email_outlined), label: const Text('Contact Developer')),
           ],
         ),
-      ),
+      ));
+      }),
     );
   }
 }
@@ -509,6 +726,8 @@ class _AuditLogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final action = log['action']?.toString().replaceAll('_', ' ') ?? 'Unknown Action';
+    final timestamp = DateTime.tryParse(log['created_at']?.toString() ?? '')?.toLocal();
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -535,13 +754,14 @@ class _AuditLogCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(log['action'],
+                Text(action,
                     style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary)),
                 const SizedBox(height: 3),
-                Text(log['user'],
+                Text(log['user_email']?.toString() ??
+                    log['user_id']?.toString() ?? 'System',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary)),
                 const SizedBox(height: 2),
@@ -550,16 +770,20 @@ class _AuditLogCard extends StatelessWidget {
                     const Icon(Icons.access_time_rounded,
                         size: 11, color: AppColors.textLight),
                     const SizedBox(width: 3),
-                    Text(log['timestamp'],
+                    Flexible(child: Text(timestamp == null ? 'Time unavailable' :
+                        DateFormat.yMMMd().add_jm().format(timestamp),
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 11, color: AppColors.textLight)),
+                            fontSize: 11, color: AppColors.textLight))),
                     const SizedBox(width: 10),
                     const Icon(Icons.language_rounded,
                         size: 11, color: AppColors.textLight),
                     const SizedBox(width: 3),
-                    Text(log['ip'],
+                    Flexible(child: Text(log['ip_address']?.toString() ??
+                        log['status']?.toString() ?? 'Recorded',
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 11, color: AppColors.textLight)),
+                            fontSize: 11, color: AppColors.textLight))),
                   ],
                 ),
               ],
@@ -573,13 +797,17 @@ class _AuditLogCard extends StatelessWidget {
 
 class _UserCard extends StatelessWidget {
   final Map<String, dynamic> user;
-  const _UserCard({required this.user});
+  final VoidCallback onAction;
+  const _UserCard({required this.user, required this.onAction});
 
   @override
   Widget build(BuildContext context) {
-    final isActive = user['status'] == 'Active';
+    final isActive = user['is_active'] == true;
+    final role = user['role']?.toString() ?? 'unknown';
+    final roleLabel = '${role[0].toUpperCase()}${role.substring(1)}';
+    final name = user['display_name']?.toString() ?? user['email']?.toString() ?? 'User';
     final roleColor =
-        user['role'] == 'Clinician' ? AppColors.teal : AppColors.primaryBlue;
+        role == 'clinician' ? AppColors.teal : AppColors.primaryBlue;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -595,7 +823,7 @@ class _UserCard extends StatelessWidget {
             radius: 20,
             backgroundColor: roleColor.withOpacity(0.1),
             child: Text(
-              (user['name'] as String).substring(0, 1),
+              name.substring(0, 1).toUpperCase(),
               style: TextStyle(
                   fontWeight: FontWeight.w700, color: roleColor, fontSize: 16),
             ),
@@ -605,12 +833,12 @@ class _UserCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(user['name'],
+                Text(name,
                     style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary)),
-                Text(user['email'],
+                Text(user['email']?.toString() ?? 'No email',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary)),
               ],
@@ -625,7 +853,7 @@ class _UserCard extends StatelessWidget {
                   color: roleColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(user['role'],
+                child: Text(roleLabel,
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -641,13 +869,16 @@ class _UserCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  user['status'],
+                  isActive ? 'Active' : 'Suspended',
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: isActive ? AppColors.success : AppColors.danger),
                 ),
               ),
+              TextButton(onPressed: onAction,
+                child: Text(isActive ? 'Suspend' : 'Restore',
+                  style: TextStyle(color: isActive ? AppColors.danger : AppColors.success))),
             ],
           ),
         ],
@@ -658,12 +889,18 @@ class _UserCard extends StatelessWidget {
 
 class _ModelCard extends StatelessWidget {
   final Map<String, dynamic> model;
-  final void Function(String) onSnackBar;
-  const _ModelCard({required this.model, required this.onSnackBar});
+  final VoidCallback onToggle;
+  const _ModelCard({required this.model, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
-    final isActive = model['status'] == 'Active';
+    final isActive = model['is_active'] == true;
+    final target = model['prediction_target']?.toString() ?? '';
+    final resumable = target == 'diabetes_risk' || target == 'heart_disease';
+    final created = DateTime.tryParse(model['created_at']?.toString() ?? '')?.toLocal();
+    final accuracy = model['accuracy'] is num
+        ? '${((model['accuracy'] as num).toDouble() * 100).toStringAsFixed(1)}%'
+        : 'Unavailable';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(18),
@@ -679,7 +916,7 @@ class _ModelCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(model['name'],
+                child: Text(model['name']?.toString() ?? 'Unnamed Model',
                     style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -695,7 +932,7 @@ class _ModelCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  model['status'],
+                  isActive ? 'Active' : 'Paused',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -709,27 +946,26 @@ class _ModelCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              _stat('Version', model['version']),
-              _stat('Accuracy', model['accuracy']),
-              _stat('Deployed', model['deployed']),
+              _stat('Version', model['version']?.toString() ?? 'Unknown'),
+              _stat('Accuracy', accuracy),
+              _stat('Registered', created == null ? 'Unknown' : DateFormat.yMMMd().format(created)),
             ],
           ),
-          if (model['status'] == 'Staging') ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 38,
-              child: ElevatedButton(
-                onPressed: () =>
-                    onSnackBar('Model deployment requires admin approval.'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.teal,
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-                child: const Text('Promote to Production'),
-              ),
-            ),
-          ],
+          const SizedBox(height: 10),
+          Text('Target: ${target.replaceAll('_', ' ')} • ${model['algorithm'] ?? 'Algorithm unavailable'}',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          if (model['dataset_name'] != null) Text('Dataset: ${model['dataset_name']}',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(model['accuracy_source']?.toString() ?? 'No verified held-out accuracy for this model version.',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            onPressed: isActive || resumable ? onToggle : null,
+            icon: Icon(isActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
+            label: Text(isActive ? 'Pause Model' : resumable ? 'Resume Model' : 'Resume Unavailable'),
+            style: OutlinedButton.styleFrom(foregroundColor: isActive ? AppColors.danger : AppColors.teal,
+              side: BorderSide(color: isActive ? AppColors.danger : AppColors.teal)),
+          )),
         ],
       ),
     );
