@@ -129,7 +129,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             final insurance =
                 snapshot.data!['insurance'] as Map<String, dynamic>?;
             final entitlements = snapshot.data!['entitlements'] as List;
-            final fullName = '${patient['first_name']} ${patient['last_name']}';
+            final fullName = _titleCase('${patient['first_name']} ${patient['last_name']}');
             final gender = patient['gender']?.toString().trim().toLowerCase();
             final female =
                 gender == 'female' || gender == 'woman' || gender == 'f';
@@ -154,7 +154,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                         email: user['email'].toString(),
                         female: female),
                     const SizedBox(height: 16),
-                    _Section(title: 'Personal details', children: [
+                    _Section(title: 'Personal Details', children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Row(
@@ -167,7 +167,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                             InkWell(
                               onTap: () => _showId(patient['id'].toString()),
                               child: const Text(
-                                'Tap to view ID',
+                                'Tap To View ID',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: AppColors.primaryBlue,
@@ -179,12 +179,11 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                         ),
                       ),
                       InfoRow(
-                          label: 'Date of birth',
+                          label: 'Date Of Birth',
                           value: _date(patient['date_of_birth'])),
                       InfoRow(
                           label: 'Gender',
-                          value:
-                              patient['gender']?.toString() ?? 'Not recorded'),
+                          value: _titleCase(patient['gender']?.toString() ?? 'Not recorded')),
                       InfoRow(
                           label: 'Phone',
                           value: patient['phone_number']?.toString() ??
@@ -196,55 +195,55 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                               : 'Inactive'),
                     ]),
                     const SizedBox(height: 16),
-                    _Section(title: 'Access and coverage', children: [
+                    _Section(title: 'Access And Coverage', children: [
                       InfoRow(
-                          label: 'Access entitlement',
-                          value: active ? 'Active' : 'No active entitlement'),
+                          label: 'Access Entitlement',
+                          value: active ? 'Active' : 'No Active Entitlement'),
                       InfoRow(
                           label: 'Subscription',
-                          value: subscription?['status']?.toString() ??
-                              'Not requested'),
+                          value: _titleCase(subscription?['status']?.toString() ??
+                              'Not requested')),
                       if (subscription?['expires_at'] != null)
                         InfoRow(
-                            label: 'Subscription expires',
+                            label: 'Subscription Expires',
                             value: _date(subscription!['expires_at'])),
                       InfoRow(
                           label: 'Insurance',
-                          value: insurance?['provider_name']?.toString() ??
-                              'Not provided'),
+                          value: _titleCase(insurance?['provider_name']?.toString() ??
+                              'Not provided')),
                       if (insurance != null)
                         InfoRow(
                             label: 'Verification',
-                            value:
+                            value: _titleCase(
                                 insurance['verification_status']?.toString() ??
-                                    'Not verified'),
+                                    'Not verified')),
                     ]),
                     const SizedBox(height: 16),
-                    _Section(title: 'My clinician', children: [
+                    _Section(title: 'My Clinician', children: [
                       if (clinician == null)
                         const Padding(
                             padding: EdgeInsets.symmetric(vertical: 8),
-                            child: Text('No active clinician relationship.',
+                            child: Text('No Active Clinician Relationship.',
                                 style:
                                     TextStyle(color: AppColors.textSecondary)))
                       else ...[
                         InfoRow(
                             label: 'Clinician',
-                            value: clinician['display_name'].toString()),
+                            value: _titleCase(clinician['display_name'].toString())),
                         InfoRow(
                             label: 'RiskSense ID',
                             value: clinician['risk_sense_id'].toString()),
                         InfoRow(
                             label: 'Institution',
-                            value: clinician['institution']?.toString() ??
-                                'Not recorded'),
+                            value: _titleCase(clinician['institution']?.toString() ??
+                                'Not recorded')),
                       ]
                     ]),
                     const SizedBox(height: 24),
                     OutlinedButton.icon(
                         onPressed: _signOut,
                         icon: const Icon(Icons.logout_rounded),
-                        label: const Text('Sign out'),
+                        label: const Text('Sign Out'),
                         style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.danger,
                             side: const BorderSide(color: AppColors.danger))),
@@ -258,6 +257,12 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     final parsed = DateTime.tryParse(value?.toString() ?? '');
     return parsed == null ? 'Not recorded' : DateFormat.yMMMMd().format(parsed);
   }
+
+  String _titleCase(String value) => value.replaceAll('_', ' ').replaceAllMapped(
+    RegExp(r'[A-Za-z]+'), (match) {
+      final word = match.group(0)!;
+      return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+    });
 }
 
 class _IdentityCard extends StatelessWidget {

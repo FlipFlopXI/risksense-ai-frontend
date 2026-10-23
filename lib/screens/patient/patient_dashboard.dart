@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
@@ -25,13 +26,21 @@ class _PatientDashboardState extends State<PatientDashboard> {
   int _healthEpoch = 0;
   int _historyEpoch = 0;
   int _profileEpoch = 0;
+  RiskLevelFilter _historyInitialLevel = RiskLevelFilter.all;
+
+  void _openRiskHistory(RiskLevelFilter level) => setState(() {
+        _historyInitialLevel = level;
+        _historyEpoch++;
+        _currentIndex = 2;
+      });
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      _HomeTab(key: ValueKey(_dashboardEpoch)),
+      _HomeTab(key: ValueKey(_dashboardEpoch), onRiskNotice: _openRiskHistory),
       _HealthTab(key: ValueKey(_healthEpoch)),
-      HistoryScreen(key: ValueKey(_historyEpoch)),
+      HistoryScreen(
+          key: ValueKey(_historyEpoch), initialLevel: _historyInitialLevel),
       const AiAssistantScreen(),
       PatientProfileScreen(key: ValueKey(_profileEpoch)),
     ];
@@ -47,6 +56,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
           currentIndex: _currentIndex,
           onTap: (i) => setState(() {
             _currentIndex = i;
+            _historyInitialLevel = RiskLevelFilter.all;
             if (i == 0) _dashboardEpoch++;
             if (i == 1) _healthEpoch++;
             if (i == 2) _historyEpoch++;
@@ -95,17 +105,27 @@ class _PatientDashboardState extends State<PatientDashboard> {
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 class _HomeTab extends StatefulWidget {
-  const _HomeTab({super.key});
+  final ValueChanged<RiskLevelFilter> onRiskNotice;
+  const _HomeTab({super.key, required this.onRiskNotice});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<_HomeTab> {
+  static const _noticeStorage = FlutterSecureStorage();
   late Future<Map<String, dynamic>> _dashboard = _load();
 
-  Future<Map<String, dynamic>> _load() async =>
-      Map<String, dynamic>.from(await ApiClient.instance.get('/dashboard'));
+  Future<Map<String, dynamic>> _load() async {
+    final data = Map<String, dynamic>.from(
+        await ApiClient.instance.get('/dashboard'));
+    final user = Map<String, dynamic>.from(
+        await ApiClient.instance.get('/auth/me'));
+    final noticeKey = 'risk_notice_seen_${user['id']}';
+    data['_notice_key'] = noticeKey;
+    data['_seen_prediction'] = await _noticeStorage.read(key: noticeKey);
+    return data;
+  }
 
   String _greeting() {
     final h = DateTime.now().hour;
@@ -151,6 +171,17 @@ class _HomeTabState extends State<_HomeTab> {
 
     final diabetes = prediction('diabetes_risk');
     final heart = prediction('heart_disease');
+    final newest = [...predictions]..sort((a, b) =>
+        (DateTime.tryParse(b['predicted_at']?.toString() ?? '') ?? DateTime(1970))
+            .compareTo(DateTime.tryParse(a['predicted_at']?.toString() ?? '') ?? DateTime(1970)));
+    final latest = newest.isEmpty ? null : newest.first;
+    final latestScore = (latest?['risk_score'] as num?)?.toDouble();
+    final noticeLevel = latestScore == null || latestScore < .35
+        ? null
+        : latestScore >= .65 ? RiskLevelFilter.high : RiskLevelFilter.moderate;
+    final noticeId = latest?['id']?.toString();
+    final showNotice = noticeLevel != null && noticeId != null &&
+        noticeId != data['_seen_prediction'];
     final diabetesScore = (diabetes?['risk_score'] as num?)?.toDouble();
     final heartScore = (heart?['risk_score'] as num?)?.toDouble();
     final updated =
@@ -171,9 +202,23 @@ class _HomeTabState extends State<_HomeTab> {
         title: const Text('RiskSense AI'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined,
-                color: AppColors.primaryBlue, size: 22),
-            onPressed: () {},
+            tooltip: showNotice ? 'New risk analysis result' : 'Prediction history',
+            icon: Badge(
+              isLabelVisible: showNotice,
+              backgroundColor: noticeLevel == RiskLevelFilter.high
+                  ? AppColors.riskHigh : AppColors.riskMedium,
+              child: const Icon(Icons.notifications_outlined,
+                  color: AppColors.primaryBlue, size: 22),
+            ),
+            onPressed: () async {
+              if (showNotice) {
+                await _noticeStorage.write(
+                    key: data['_notice_key'].toString(), value: noticeId);
+                if (!mounted) return;
+                setState(() => data['_seen_prediction'] = noticeId);
+              }
+              widget.onRiskNotice(noticeLevel ?? RiskLevelFilter.all);
+            },
           ),
           const ScreenHelpButton(topic: 'Dashboard'),
           const SizedBox(width: 8),
@@ -375,15 +420,18 @@ class _HomeTabState extends State<_HomeTab> {
 
             const SectionHeader(title: 'Quick Stats'),
             const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
+            GridView(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                mainAxisExtent: 174,
+              ),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.25,
               children: [
                 StatCard(
+                  compact: true,
                   title: 'BMI',
                   value: number(data['bmi'], decimals: 1),
                   icon: Icons.monitor_weight_outlined,
@@ -391,6 +439,7 @@ class _HomeTabState extends State<_HomeTab> {
                   subtitle: 'Latest recorded BMI',
                 ),
                 StatCard(
+                  compact: true,
                   title: 'Blood Pressure',
                   value:
                       '${number(data['latest_systolic_bp'])}/${number(data['latest_diastolic_bp'])}',
@@ -399,6 +448,7 @@ class _HomeTabState extends State<_HomeTab> {
                   subtitle: 'Latest recorded BP',
                 ),
                 StatCard(
+                  compact: true,
                   title: 'Glucose',
                   value:
                       '${number(data['latest_glucose'], decimals: 1)} ${data['latest_glucose_unit'] ?? ''}'
@@ -408,6 +458,7 @@ class _HomeTabState extends State<_HomeTab> {
                   subtitle: 'Latest lab result',
                 ),
                 StatCard(
+                  compact: true,
                   title: 'Predictions',
                   value: '${data['prediction_count'] ?? 0}',
                   icon: Icons.history_rounded,
