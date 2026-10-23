@@ -4,7 +4,7 @@ import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/screens/auth/splash_screen.dart';
 import 'package:medguide/screens/auth/login_screen.dart';
 import 'package:medguide/screens/admin/admin_dashboard.dart';
-import 'package:medguide/screens/clinician/clinician_dashboard.dart';
+import 'package:medguide/screens/clinician/clinician_workspace.dart';
 import 'package:medguide/screens/patient/patient_access_gate.dart';
 import 'package:medguide/services/api_client.dart';
 

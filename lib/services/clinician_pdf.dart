@@ -1,0 +1,48 @@
+import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+/// Exports only the data explicitly supplied by the current authorized screen.
+class ClinicianPdf {
+  static Future<void> export(BuildContext context, {
+    required String title,
+    required List<String> lines,
+  }) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Protect patient information'),
+        content: const Text(
+          'This PDF may contain personal health information protected by South Africa’s POPIA. '
+          'Only generate, store or share it for an authorized clinical purpose. '
+          'Check the recipient and use a secure location before continuing.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continue to PDF')),
+        ],
+      ),
+    );
+    if (approved != true || !context.mounted) return;
+    final document = pw.Document();
+    document.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      build: (_) => [
+        pw.Text(title, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 14),
+        ...lines.map((line) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 7),
+          child: pw.Text(line, style: const pw.TextStyle(fontSize: 11)),
+        )),
+        pw.SizedBox(height: 16),
+        pw.Text('RiskSense AI provides decision support, not a diagnosis or treatment recommendation.',
+            style: const pw.TextStyle(fontSize: 9)),
+      ],
+    ));
+    await Printing.layoutPdf(onLayout: (_) async => document.save());
+  }
+}
