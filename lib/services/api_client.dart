@@ -186,7 +186,18 @@ class ApiClient {
 
   String _message(DioException error) {
     final data = error.response?.data;
-    if (data is Map && data['detail'] != null) return data['detail'].toString();
+    if (data is Map && data['detail'] != null) {
+      final detail = data['detail'];
+      if (detail is Map) {
+        final message = detail['message']?.toString();
+        final fields = detail['fields'] ?? detail['missing_fields'] ?? detail['invalid_fields'];
+        if (message != null) {
+          return fields is List && fields.isNotEmpty
+              ? '$message Required fields: ${fields.join(', ')}.' : message;
+        }
+      }
+      return detail.toString();
+    }
     if (error.type == DioExceptionType.connectionError ||
         error.type == DioExceptionType.connectionTimeout) {
       return 'Unable to reach the RiskSense API. Check that the local backend is running.';
