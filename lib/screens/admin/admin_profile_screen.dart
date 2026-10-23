@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/theme/app_theme.dart';
@@ -28,15 +29,37 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
+  Future<void> _showAdminId(String id) => showDialog<void>(context: context,
+    builder: (dialogContext) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(padding: const EdgeInsets.all(20), child: Column(
+        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Admin ID', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          SelectableText(id, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 16),
+          Row(children: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Back')),
+            const Spacer(),
+            FilledButton.icon(onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: id));
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            }, icon: const Icon(Icons.copy_rounded), label: const Text('Copy ID')),
+          ]),
+        ],
+      )),
+    ));
+
   String _timestamp(dynamic value) {
     final parsed = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
     return parsed == null
-        ? 'No activity recorded'
+        ? 'No Activity Recorded'
         : DateFormat('d MMM yyyy, HH:mm').format(parsed);
   }
 
   String _action(dynamic value) {
-    if (value is! Map) return 'No administrative action recorded';
+    if (value is! Map) return 'No Administrative Action Recorded';
     final words = value['action'].toString().toLowerCase().split('_');
     return words
         .map((word) => word.isEmpty
@@ -58,11 +81,15 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                 return Center(
                     child: ElevatedButton(
                         onPressed: () => setState(() => _profile = _load()),
-                        child: const Text('Retry profile')));
+                        child: const Text('Retry Profile')));
               final data = snapshot.data!;
               final lastAction = data['last_action'];
               return RefreshIndicator(
-                  onRefresh: () async => setState(() => _profile = _load()),
+                  onRefresh: () async {
+                    final next = _load();
+                    setState(() => _profile = next);
+                    await next;
+                  },
                   child: ListView(padding: const EdgeInsets.all(20), children: [
                     Container(
                         padding: const EdgeInsets.all(20),
@@ -103,28 +130,35 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Account and activity',
+                              Text('Account And Activity',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineSmall),
                               const Divider(height: 24),
-                              InfoRow(
-                                  label: 'Admin ID',
-                                  value: data['admin_id'].toString()),
+                              Padding(padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(children: [
+                                  const Expanded(child: Text('Admin ID',
+                                    style: TextStyle(color: AppColors.textSecondary))),
+                                  InkWell(onTap: () => _showAdminId(data['admin_id'].toString()),
+                                    child: const Text('Tap To View ID', style: TextStyle(
+                                      color: AppColors.primaryBlue,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline))),
+                                ])),
                               InfoRow(
                                   label: 'Status',
                                   value: data['is_active'] == true
                                       ? 'Active'
                                       : 'Inactive'),
                               InfoRow(
-                                  label: 'Last login',
+                                  label: 'Last Login',
                                   value: _timestamp(data['last_login_at'])),
                               InfoRow(
-                                  label: 'Last action',
+                                  label: 'Last Action',
                                   value: _action(lastAction)),
                               if (lastAction is Map)
                                 InfoRow(
-                                    label: 'Action time',
+                                    label: 'Action Time',
                                     value:
                                         _timestamp(lastAction['performed_at'])),
                             ])),
@@ -132,7 +166,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                     OutlinedButton.icon(
                         onPressed: _signOut,
                         icon: const Icon(Icons.logout_rounded),
-                        label: const Text('Sign out'),
+                        label: const Text('Sign Out'),
                         style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.danger,
                             side: const BorderSide(color: AppColors.danger))),
