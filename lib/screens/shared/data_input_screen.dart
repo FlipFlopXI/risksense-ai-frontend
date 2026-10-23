@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:medguide/screens/shared/prediction_result_screen.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
 
 class DataInputScreen extends StatefulWidget {
-  const DataInputScreen({super.key});
+  final bool clinicianMode;
+  const DataInputScreen({super.key, this.clinicianMode = false});
   @override
   State<DataInputScreen> createState() => _DataInputScreenState();
 }
@@ -20,6 +22,8 @@ class _DataInputScreenState extends State<DataInputScreen> {
       _temperature = TextEditingController();
   final _fastingGlucose = TextEditingController(),
       _cholesterol = TextEditingController();
+  final _ageInput = TextEditingController(), _ethnicityInput = TextEditingController();
+  String _sexInput = 'Female';
   final _expanded = <String, bool>{
     'Demographics': false,
     'Lifestyle': false,
@@ -40,6 +44,10 @@ class _DataInputScreenState extends State<DataInputScreen> {
   }
 
   Future<void> _load() async {
+    if (widget.clinicianMode) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     try {
       final patient = Map<String, dynamic>.from(
           await ApiClient.instance.get('/patients/me'));
@@ -89,9 +97,47 @@ class _DataInputScreenState extends State<DataInputScreen> {
   }
 
   Future<void> _submit() async {
+    setState(() => _expanded.updateAll((key, value) => true));
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     if (!_formKey.currentState!.validate()) return;
+    final systolic = _number(_systolic), diastolic = _number(_diastolic);
+    if (systolic != null && diastolic != null && diastolic >= systolic) {
+      _message('Diastolic blood pressure must be lower than systolic blood pressure.', error: true);
+      setState(() => _expanded['Vitals'] = true);
+      return;
+    }
     setState(() => _submitting = true);
     try {
+      if (widget.clinicianMode) {
+        final result = Map<String, dynamic>.from(await ApiClient.instance.post(
+          '/clinicians/assessment', data: {
+            'model': _model,
+            'age': int.tryParse(_ageInput.text.trim()),
+            'sex': _sexInput.toLowerCase(),
+            'ethnicity': _ethnicityInput.text.trim().isEmpty ? null : _ethnicityInput.text.trim(),
+            'height_cm': _number(_height), 'weight_kg': _number(_weight),
+            'waist_circumference_cm': _number(_waist),
+            'systolic_bp': _number(_systolic), 'diastolic_bp': _number(_diastolic),
+            'fasting_glucose': _number(_fastingGlucose),
+            'total_cholesterol': _number(_cholesterol),
+          },
+        ));
+        if (!mounted) return;
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => PredictionResultScreen(
+            condition: _model == 'diabetes' ? 'Diabetes' : 'Heart Disease',
+            riskScore: (result['risk_score'] as num).toDouble(),
+            riskClassification: result['risk_classification']?.toString(),
+            interpretation: result['interpretation']?.toString(),
+            contributingFactors: (result['contributing_factors'] as List? ?? const [])
+                .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(),
+            clinicianMode: true,
+          ),
+        ));
+        if (mounted) setState(() => _expanded.updateAll((key, value) => true));
+        return;
+      }
       final now = DateTime.now().toUtc().toIso8601String();
       final profile = <String, dynamic>{
         'height_cm': _number(_height),
@@ -160,10 +206,17 @@ class _DataInputScreenState extends State<DataInputScreen> {
         'measured_at': measuredAt,
       });
   String? _nullIfUnset(String value) => value == 'Not recorded' ? null : value;
-  void _message(String value, {bool error = false}) =>
+  void _message(String value, {bool error = false}) {
+    if (error) {
+      showDialog<void>(context: context, builder: (dialog) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Unable To Save Health Data'), content: Text(value),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(value),
-          backgroundColor: error ? AppColors.danger : AppColors.success));
+        content: Text(value), backgroundColor: AppColors.success));
+    }
+  }
 
   @override
   void dispose() {
@@ -177,7 +230,9 @@ class _DataInputScreenState extends State<DataInputScreen> {
       _oxygen,
       _temperature,
       _fastingGlucose,
-      _cholesterol
+      _cholesterol,
+      _ageInput,
+      _ethnicityInput,
     ]) {
       c.dispose();
     }
@@ -187,8 +242,10 @@ class _DataInputScreenState extends State<DataInputScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: AppColors.background,
-        appBar: const MedAppBar(
-            title: 'Health Data Input', showBack: true, showSecureBadge: false),
+        appBar: MedAppBar(
+            title: widget.clinicianMode ? 'Demonstration Analysis' : 'Health Data Input',
+            helpTopic: widget.clinicianMode ? 'Demonstration Analysis' : 'Health Data Input',
+            showBack: !widget.clinicianMode, showSecureBadge: false),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : Form(
@@ -196,11 +253,31 @@ class _DataInputScreenState extends State<DataInputScreen> {
                 child: ListView(padding: const EdgeInsets.all(20), children: [
                   Text('Clinical Profile',
                       style: Theme.of(context).textTheme.headlineLarge),
-                  const Text(
-                      'Record current measurements, then choose a risk model.'),
+                  Text(widget.clinicianMode
+                      ? 'Enter demonstration measurements. Diabetes uses age, sex, height/weight, waist and blood pressure; Heart Disease uses age, sex, systolic BP, fasting glucose and total cholesterol. Nothing is saved.'
+                      : 'Record current measurements, then choose a risk model.'),
                   const SizedBox(height: 20),
                   _section('Demographics', Icons.person_rounded,
-                      AppColors.primaryBlue, [
+                      AppColors.primaryBlue, widget.clinicianMode ? [
+                    _field('Age (years)', _ageInput, Icons.cake_rounded,
+                        AppColors.amber, required: true),
+                    _dropdown('Sex used by model', _sexInput, ['Female', 'Male'],
+                        Icons.badge_rounded, AppColors.teal,
+                        (v) => setState(() => _sexInput = v!)),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: TextFormField(
+                        controller: _ethnicityInput,
+                        decoration: const InputDecoration(
+                          labelText: 'Ethnicity (optional; not used by these models)',
+                          prefixIcon: Icon(Icons.public_rounded,
+                              color: AppColors.primaryBlue),
+                        ),
+                      ),
+                    ),
+                    const Text('Demonstration inputs are used in memory for this analysis and are not saved to a patient record.',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ] : [
                     _readonly('Age', _age?.toString() ?? 'Not recorded',
                         Icons.cake_rounded, AppColors.amber),
                     _readonly(
@@ -250,26 +327,20 @@ class _DataInputScreenState extends State<DataInputScreen> {
                   ]),
                   _section(
                       'Vitals', Icons.monitor_heart_rounded, AppColors.danger, [
-                    _row([
-                      _field('Height (cm)', _height, Icons.height_rounded,
-                          AppColors.primaryBlue),
-                      _field('Weight (kg)', _weight,
-                          Icons.monitor_weight_rounded, AppColors.teal)
-                    ]),
+                    _field('Height', _height, Icons.height_rounded,
+                        AppColors.primaryBlue),
+                    _field('Weight', _weight,
+                        Icons.monitor_weight_rounded, AppColors.teal),
                     _field('Waist circumference (cm)', _waist,
                         Icons.straighten_rounded, AppColors.amber),
-                    _row([
-                      _field('Systolic BP', _systolic, Icons.favorite_rounded,
-                          AppColors.danger),
-                      _field('Diastolic BP', _diastolic,
-                          Icons.favorite_border_rounded, AppColors.danger)
-                    ]),
-                    _row([
-                      _field('Heart rate (bpm)', _heartRate,
-                          Icons.monitor_heart_rounded, AppColors.teal),
-                      _field('Oxygen saturation (%)', _oxygen,
-                          Icons.air_rounded, AppColors.primaryBlue)
-                    ]),
+                    _field('Systolic BP', _systolic, Icons.favorite_rounded,
+                        AppColors.danger),
+                    _field('Diastolic BP', _diastolic,
+                        Icons.favorite_border_rounded, AppColors.danger),
+                    _field('Heart rate', _heartRate,
+                        Icons.monitor_heart_rounded, AppColors.teal),
+                    _field('Oxygen saturation', _oxygen,
+                        Icons.air_rounded, AppColors.primaryBlue),
                     _field('Temperature (°C)', _temperature,
                         Icons.thermostat_rounded, AppColors.amber),
                   ]),
@@ -346,22 +417,62 @@ class _DataInputScreenState extends State<DataInputScreen> {
                   prefixIcon: Icon(icon, size: 25, color: color),
                   filled: true,
                   fillColor: AppColors.background)));
-  Widget _field(
-          String label, TextEditingController c, IconData icon, Color color) =>
-      Padding(
+  Widget _field(String label, TextEditingController c, IconData icon,
+          Color color, {bool required = false}) {
+    final config = identical(c, _ageInput) ? ('years', 0.0, 120.0, true) :
+      identical(c, _height) ? ('cm', 50.0, 250.0, false) :
+      identical(c, _weight) ? ('kg', 2.0, 350.0, false) :
+      identical(c, _waist) ? ('cm', 30.0, 250.0, false) :
+      identical(c, _systolic) ? ('mmHg', 50.0, 300.0, false) :
+      identical(c, _diastolic) ? ('mmHg', 30.0, 200.0, false) :
+      identical(c, _heartRate) ? ('bpm', 30.0, 250.0, false) :
+      identical(c, _oxygen) ? ('%', 50.0, 100.0, false) :
+      identical(c, _temperature) ? ('°C', 30.0, 43.0, false) :
+      identical(c, _fastingGlucose) ? ('mg/dL', 20.0, 600.0, false) :
+      ('mg/dL', 50.0, 600.0, false);
+    final neededForDemo = widget.clinicianMode && (
+      _model == 'diabetes' && (identical(c, _height) || identical(c, _weight) ||
+        identical(c, _waist) || identical(c, _systolic) || identical(c, _diastolic)) ||
+      _model == 'heart_disease' && (identical(c, _systolic) ||
+        identical(c, _fastingGlucose) || identical(c, _cholesterol)));
+    return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: TextFormField(
               controller: c,
               keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+                  TextInputType.numberWithOptions(decimal: !config.$4),
+              inputFormatters: [TextInputFormatter.withFunction((oldValue, newValue) {
+                final pattern = config.$4 ? RegExp(r'^\d{0,3}$') :
+                    RegExp(r'^\d{0,3}(\.\d{0,2})?$');
+                return pattern.hasMatch(newValue.text) ? newValue : oldValue;
+              })],
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: InputDecoration(
-                  labelText: label,
-                  prefixIcon: Icon(icon, size: 25, color: color)),
-              validator: (v) => v != null &&
-                      v.trim().isNotEmpty &&
-                      double.tryParse(v.trim()) == null
-                  ? 'Enter a valid number'
-                  : null));
+                  labelText: label.split(' (').first,
+                  prefixIcon: Icon(icon, size: 25, color: color),
+                  suffixText: config.$1,
+                  filled: true,
+                  fillColor: AppColors.cardWhite,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              validator: (v) {
+                final value = v?.trim() ?? '';
+                if (value.isEmpty) return required || neededForDemo ?
+                    'Required for this analysis' : null;
+                final number = double.tryParse(value);
+                if (number == null || !number.isFinite ||
+                    (config.$4 && int.tryParse(value) == null)) {
+                  return 'Enter a valid ${config.$4 ? 'whole number' : 'number'}';
+                }
+                if (number < config.$2 || number > config.$3) {
+                  return 'Enter ${config.$2.toStringAsFixed(0)}–${config.$3.toStringAsFixed(0)} ${config.$1}';
+                }
+                if (identical(c, _diastolic) && _number(_systolic) != null &&
+                    number >= _number(_systolic)!) {
+                  return 'Must be lower than systolic BP';
+                }
+                return null;
+              }));
+  }
   Widget _dropdown(String label, String value, List<String> values,
           IconData icon, Color color, ValueChanged<String?> changed) =>
       Padding(
@@ -375,15 +486,6 @@ class _DataInputScreenState extends State<DataInputScreen> {
                   .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                   .toList(),
               onChanged: changed));
-  Widget _row(List<Widget> values) =>
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        for (int i = 0; i < values.length; i++)
-          Expanded(
-              child: Padding(
-                  padding:
-                      EdgeInsets.only(right: i < values.length - 1 ? 10 : 0),
-                  child: values[i]))
-      ]);
   Widget _modelCard(String value, String label, IconData icon, Color color) {
     final selected = _model == value;
     return InkWell(
