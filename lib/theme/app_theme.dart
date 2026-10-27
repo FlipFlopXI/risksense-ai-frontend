@@ -1,31 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medguide/services/app_preferences.dart';
 
 class AppColors {
-  static const Color primaryBlue = Color(0xFF0A3D62);
-  static const Color teal = Color(0xFF0FB9B1);
-  static const Color background = Color(0xFFF8F9FA);
-  static const Color amber = Color(0xFFF39C12);
-  static const Color danger = Color(0xFFE74C3C);
-  static const Color success = Color(0xFF27AE60);
-  static const Color cardWhite = Color(0xFFFFFFFF);
-  static const Color textPrimary = Color(0xFF1A2332);
-  static const Color textSecondary = Color(0xFF6B7A8D);
-  static const Color textLight = Color(0xFFADB8C7);
-  static const Color border = Color(0xFFE4E9F0);
-  static const Color surfaceBlue = Color(0xFFEBF3FA);
-  static const Color surfaceTeal = Color(0xFFE6F9F8);
-
-  static const Color riskLow = Color(0xFF27AE60);
-  static const Color riskMedium = Color(0xFFF39C12);
-  static const Color riskHigh = Color(0xFFE74C3C);
+  static bool get dark => AppPreferences.instance.darkMode;
+  static Color get primaryBlue =>
+      dark ? const Color(0xFF7BB7F5) : const Color(0xFF0A3D62);
+  static Color get teal =>
+      dark ? const Color(0xFF58D8D0) : const Color(0xFF087F7A);
+  static Color get background =>
+      dark ? const Color(0xFF0C1422) : const Color(0xFFF8F9FA);
+  static Color get amber =>
+      dark ? const Color(0xFFFFBD62) : const Color(0xFFA45C00);
+  static Color get danger =>
+      dark ? const Color(0xFFFF7972) : const Color(0xFFC4332D);
+  static Color get success =>
+      dark ? const Color(0xFF65D4A2) : const Color(0xFF187443);
+  static Color get cardWhite =>
+      dark ? const Color(0xFF172436) : const Color(0xFFFFFFFF);
+  static Color get textPrimary =>
+      dark ? const Color(0xFFF2F6FC) : const Color(0xFF1A2332);
+  static Color get textSecondary =>
+      dark ? const Color(0xFFB4C3D5) : const Color(0xFF627287);
+  static Color get textLight =>
+      dark ? const Color(0xFF91A5BA) : const Color(0xFF64748B);
+  static Color get border =>
+      dark ? const Color(0xFF34465C) : const Color(0xFFE4E9F0);
+  static Color get surfaceBlue =>
+      dark ? const Color(0xFF1C3550) : const Color(0xFFEBF3FA);
+  static Color get surfaceTeal =>
+      dark ? const Color(0xFF153B41) : const Color(0xFFE6F9F8);
+  static Color get riskLow => success;
+  static Color get riskMedium => amber;
+  static Color get riskHigh => danger;
+  static Color get brandSolid => dark ? const Color(0xFF245D91) : primaryBlue;
+  static Color get heroStart =>
+      dark ? const Color(0xFF183B64) : const Color(0xFF0A3D62);
+  static Color get heroEnd =>
+      dark ? const Color(0xFF126B70) : const Color(0xFF0FB9B1);
+  static List<Color> get femaleGradient => dark
+      ? const [Color(0xFF322053), Color(0xFF7845A8)]
+      : const [Color(0xFF6B42B8), Color(0xFFAA70D6)];
+  static List<Color> get clinicianFemaleGradient => dark
+      ? const [Color(0xFF211238), Color(0xFF5A348D), Color(0xFF7C4CA7)]
+      : const [Color(0xFF28154F), Color(0xFF6840AE), Color(0xFFA66AD7)];
 }
 
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
+      brightness: AppColors.dark ? Brightness.dark : Brightness.light,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
+        brightness: AppColors.dark ? Brightness.dark : Brightness.light,
         seedColor: AppColors.primaryBlue,
         primary: AppColors.primaryBlue,
         secondary: AppColors.teal,
@@ -33,7 +60,9 @@ class AppTheme {
         error: AppColors.danger,
       ),
       scaffoldBackgroundColor: AppColors.background,
-      textTheme: GoogleFonts.dmSansTextTheme().copyWith(
+      textTheme: GoogleFonts.dmSansTextTheme()
+          .apply(bodyColor: AppColors.textPrimary, displayColor: AppColors.textPrimary)
+          .copyWith(
         displayLarge: GoogleFonts.dmSans(
           fontSize: 32,
           fontWeight: FontWeight.w700,
@@ -90,13 +119,13 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          side: BorderSide(color: AppColors.border, width: 1),
         ),
       ),
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryBlue,
+          backgroundColor: AppColors.brandSolid,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -113,7 +142,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primaryBlue,
-          side: const BorderSide(
+          side: BorderSide(
             color: AppColors.primaryBlue,
             width: 1.5,
           ),
@@ -137,26 +166,26 @@ class AppTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppColors.primaryBlue,
             width: 1.5,
           ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.danger),
+          borderSide: BorderSide(color: AppColors.danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppColors.danger,
             width: 1.5,
           ),
@@ -169,6 +198,10 @@ class AppTheme {
           fontSize: 14,
           color: AppColors.textSecondary,
         ),
+        floatingLabelStyle: GoogleFonts.dmSans(color: AppColors.primaryBlue),
+        prefixIconColor: AppColors.textSecondary,
+        suffixIconColor: AppColors.textSecondary,
+        errorStyle: GoogleFonts.dmSans(color: AppColors.danger),
       ),
 
       appBarTheme: AppBarTheme(
@@ -176,7 +209,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(
+        iconTheme: IconThemeData(
           color: AppColors.primaryBlue,
         ),
         titleTextStyle: GoogleFonts.dmSans(
@@ -187,7 +220,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
 
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.cardWhite,
         selectedItemColor: AppColors.primaryBlue,
         unselectedItemColor: AppColors.textLight,
@@ -195,7 +228,7 @@ class AppTheme {
         elevation: 0,
       ),
 
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: AppColors.border,
         thickness: 1,
         space: 1,

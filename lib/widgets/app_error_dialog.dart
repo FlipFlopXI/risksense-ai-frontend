@@ -6,7 +6,7 @@ Future<void> showAppErrorDialog(BuildContext context, String message,
   context: context,
   builder: (dialog) => AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    icon: const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+    icon:  Icon(Icons.error_outline_rounded, color: AppColors.danger),
     title: Text(title),
     content: Text(message),
     actions: [TextButton(onPressed: () => Navigator.pop(dialog),

@@ -27,7 +27,9 @@ class _ClinicianPredictionScreenState extends State<ClinicianPredictionScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return Scaffold(
     backgroundColor: AppColors.background,
     appBar: AppBar(title: const Text('Risk Prediction'),
       actions: const [ScreenHelpButton(topic: 'Prediction Result')]),
@@ -50,7 +52,7 @@ class _ClinicianPredictionScreenState extends State<ClinicianPredictionScreen> {
       return ListView(padding: const EdgeInsets.all(20), children: [
         Text(name, style: Theme.of(context).textTheme.headlineLarge),
         Text('$condition analysis • ${at == null ? 'Date unavailable' : DateFormat.yMMMd().add_jm().format(at.toLocal())}',
-          style: const TextStyle(color: AppColors.textSecondary)),
+          style:  TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 18),
         Card(color: AppColors.cardWhite, child: Padding(
           padding: const EdgeInsets.all(20), child: Column(children: [
@@ -58,14 +60,14 @@ class _ClinicianPredictionScreenState extends State<ClinicianPredictionScreen> {
               color: AppColors.primaryBlue, size: 34),
             const SizedBox(height: 10),
             Text(score == null ? 'Score unavailable' : '${(score * 100).toStringAsFixed(1)}%',
-              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold,
+              style:  TextStyle(fontSize: 34, fontWeight: FontWeight.bold,
                 color: AppColors.primaryBlue)),
             Text('${prediction['risk_classification'] ?? 'Unknown'} model classification',
               textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text('Model v${prediction['model_version'] ?? 'unknown'} • Prediction ${prediction['id']}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              style:  TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           ]),
         )),
         const SizedBox(height: 12),
@@ -110,6 +112,7 @@ class _ClinicianPredictionScreenState extends State<ClinicianPredictionScreen> {
       ]);
     }),
   );
+  }
 
   Widget _panel(BuildContext context, String title, IconData icon,
       List<Widget> children) => Container(

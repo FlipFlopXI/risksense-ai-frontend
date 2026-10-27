@@ -42,7 +42,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         children: [
           Text('Patient ID', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 6),
-          const Text('RiskSense patient reference',
+           Text('RiskSense patient reference',
             style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 16),
           SelectableText(id),
@@ -67,7 +67,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     value == null ? 'Not recorded' : '$value${unit.isEmpty ? '' : ' $unit'}';
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return Scaffold(
     backgroundColor: AppColors.background,
     appBar: AppBar(title: Text(widget.patient['name']?.toString() ?? 'Patient details',
       maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -99,8 +101,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           Container(padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),
               gradient: LinearGradient(colors: female
-                ? const [Color(0xFF6B42B8), Color(0xFFAA70D6)]
-                : const [AppColors.primaryBlue, AppColors.teal])),
+                ? AppColors.femaleGradient
+                :  [AppColors.heroStart, AppColors.heroEnd])),
             child: Row(children: [
               CircleAvatar(radius: 28, backgroundColor: Colors.white24,
                 child: Text(name.isEmpty ? '?' : name.substring(0, 1),
@@ -145,7 +147,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           ]),
           const SizedBox(height: 14),
           _section(context, 'Risk Predictions', Icons.analytics_outlined, [
-            const Text('Open a prediction to see its interpretation, actual contributing factors and input snapshot.',
+             Text('Open a prediction to see its interpretation, actual contributing factors and input snapshot.',
               style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 12),
             _predictionTile('Latest Diabetes', diabetes, patient['id'].toString()),
@@ -183,6 +185,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       );
     }),
   );
+  }
 
   Widget _predictionTile(String title, Map? prediction, String patientId) {
     if (prediction == null) return ListTile(title: Text(title),
@@ -194,7 +197,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       subtitle: Text('${_date(prediction['predicted_at'])} • ${prediction['risk_classification']}'),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(score == null ? '—' : '${(score * 100).toStringAsFixed(1)}%',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+          style:  TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
         const Icon(Icons.chevron_right_rounded),
       ]),
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) =>

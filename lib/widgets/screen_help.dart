@@ -28,23 +28,83 @@ class ScreenHelpButton extends StatelessWidget {
   const ScreenHelpButton({super.key, required this.topic});
 
   static const _content = <String, _HelpContent>{
+    'Settings': _HelpContent(
+        'Settings',
+        'Manage account security and local app preferences. Changes to your password and sessions are verified by the backend.',
+        [
+          _HelpSection('Account security',
+              'These controls require your authenticated account.', [
+            _HelpEntry(Icons.lock_outline_rounded, 'Change password',
+                'Enter your current password. Other active sessions are signed out when the change succeeds.'),
+            _HelpEntry(Icons.devices_rounded, 'Active sessions',
+                'Review current and other sessions; revoke a session you no longer recognise.'),
+          ]),
+          _HelpSection(
+              'On this device',
+              'Display and risk-alert choices are saved locally on this device.',
+              [
+                _HelpEntry(Icons.dark_mode_outlined, 'Dark mode',
+                    'Switch between light and dark palettes without changing your data or navigation.'),
+                _HelpEntry(Icons.text_fields_rounded, 'Text size',
+                    'Choose a comfortable size for app text.'),
+                _HelpEntry(Icons.motion_photos_off_rounded, 'Reduce motion',
+                    'Reduce supported in-app animations.'),
+                _HelpEntry(Icons.notifications_outlined, 'Risk alerts',
+                    'Patient dashboard badges can be shown or hidden; this does not change stored results.'),
+              ]),
+        ],
+        'RiskSense AI settings do not replace medical advice. Device preferences do not change backend access or clinical records.'),
     'Registration': _HelpContent(
-      'Create your patient account',
-      'Enter your own account details to register. Registration creates a patient account; access to risk analysis still requires an active entitlement.',
+        'Create your patient account',
+        'Enter your own account details, then use the six-digit code sent to your email. Your patient account is created only after the code is verified. Next, activate access and complete the six-step introduction and health form before the dashboard opens.',
+        [
+          _HelpSection(
+              'Identity',
+              'Use accurate details so your account and health information remain linked to you.',
+              [
+                _HelpEntry(Icons.person_outline_rounded, 'Full name',
+                    'Enter your first and last name.'),
+                _HelpEntry(Icons.mail_outline_rounded, 'Email address',
+                    'Use an address you can access. It becomes your sign-in name.'),
+                _HelpEntry(Icons.cake_outlined, 'Date of birth',
+                    'Used to calculate your age. Choose your actual date of birth.'),
+                _HelpEntry(Icons.badge_outlined, 'Gender',
+                    'Choose the option that applies to you. Some analyses require a recorded sex value.'),
+              ]),
+          _HelpSection('Account security',
+              'Choose a password you have not reused elsewhere.', [
+            _HelpEntry(Icons.lock_outline_rounded, 'Password',
+                'At least 6 characters, with a capital letter, a number, and a special character.'),
+            _HelpEntry(Icons.verified_user_outlined, 'Confirm password',
+                'Enter exactly the same password again.'),
+            _HelpEntry(Icons.check_box_outlined, 'Consent',
+                'Read and accept the health-data notice before creating the account.'),
+          ]),
+        ],
+        'RiskSense AI provides decision support, not a diagnosis. Registration does not verify a subscription or insurance benefit.'),
+    'Onboarding Health Profile': _HelpContent(
+      'Complete your health profile',
+      'This final onboarding step records baseline details used across RiskSense. Enter only information you know and can verify; you can update eligible health measurements later.',
       [
-        _HelpSection('Identity', 'Use accurate details so your account and health information remain linked to you.', [
-          _HelpEntry(Icons.person_outline_rounded, 'Full name', 'Enter your first and last name.'),
-          _HelpEntry(Icons.mail_outline_rounded, 'Email address', 'Use an address you can access. It becomes your sign-in name.'),
-          _HelpEntry(Icons.cake_outlined, 'Date of birth', 'Used to calculate your age. Choose your actual date of birth.'),
-          _HelpEntry(Icons.badge_outlined, 'Gender', 'Choose the option that applies to you. Some analyses require a recorded sex value.'),
+        _HelpSection('Body measurements', 'Use your current measurements. BMI is calculated automatically from height and weight.', [
+          _HelpEntry(Icons.height_rounded, 'Height', 'Enter centimetres (cm), between 100 and 250.'),
+          _HelpEntry(Icons.monitor_weight_rounded, 'Weight', 'Enter kilograms (kg), between 25 and 350.'),
+          _HelpEntry(Icons.straighten_rounded, 'Waist circumference', 'Optional; record centimetres (cm) if measured.'),
         ]),
-        _HelpSection('Account security', 'Choose a password you have not reused elsewhere.', [
-          _HelpEntry(Icons.lock_outline_rounded, 'Password', 'At least 6 characters, with a capital letter, a number, and a special character.'),
-          _HelpEntry(Icons.verified_user_outlined, 'Confirm password', 'Enter exactly the same password again.'),
-          _HelpEntry(Icons.check_box_outlined, 'Consent', 'Read and accept the health-data notice before creating the account.'),
+        _HelpSection('Lifestyle and family history', 'Select the option that describes you. Unknown family history can remain unknown.', [
+          _HelpEntry(Icons.smoke_free_rounded, 'Smoking', 'Never, Former, or Current.'),
+          _HelpEntry(Icons.directions_run_rounded, 'Activity', 'Sedentary, Light, Moderate, or Active.'),
+          _HelpEntry(Icons.local_bar_rounded, 'Alcohol', 'None, Occasional, Regular, or Prefer not to say.'),
+          _HelpEntry(Icons.family_restroom_rounded, 'Family history', 'Record known diabetes, heart disease, and high blood pressure history separately.'),
+        ]),
+        _HelpSection('Health context', 'Only add conditions and medication that apply to you.', [
+          _HelpEntry(Icons.public_rounded, 'Ethnicity', 'Optional account information; if already recorded it cannot be changed here.'),
+          _HelpEntry(Icons.medical_information_outlined, 'Chronic condition', 'Enable the checkbox to describe a chronic condition.'),
+          _HelpEntry(Icons.medication_outlined, 'Chronic medication', 'Optional when a chronic condition is selected; include the name and dose if known.'),
         ]),
       ],
-      'RiskSense AI provides decision support, not a diagnosis. Registration does not verify a subscription or insurance benefit.'),
+      'RiskSense AI provides decision support, not a diagnosis. Do not guess clinical information or change treatment based on this form.',
+    ),
     'Health Data Input': _HelpContent(
       'Health data input',
       'Review account demographics, record measurements you know, and choose the model to run. Closed sections can be opened as needed. Your entries remain in place when you return from an analysis.',
@@ -143,9 +203,68 @@ class ScreenHelpButton extends StatelessWidget {
                   'Names the strongest score-raising and score-lowering inputs from the same calculation. A large bar is not proof of cause or a treatment target.'),
               _HelpEntry(Icons.history_rounded, 'Prediction history',
                   'Your saved result can be revisited through Prediction History.'),
+              _HelpEntry(Icons.picture_as_pdf_outlined, 'PDF report',
+                  'Open the PDF for this analysis here or from its saved prediction. The preview offers sharing and saving.'),
             ]),
       ],
       'This is decision support, not a diagnosis or a prediction of certainty. Review concerning results and any treatment decisions with a qualified clinician.',
+    ),
+    'Nutrition': _HelpContent(
+      'Nutrition',
+      'Track food, water, blood glucose and insulin doses you have taken. Generate Meal Plan opens separate, flexible guidance based on your latest risk analyses.',
+      [
+        _HelpSection('Food log',
+            'Add one food or ingredient at a time to the appropriate meal.', [
+          _HelpEntry(Icons.search_rounded, 'Search foods',
+              'Find products in Open Food Facts or search foods you have logged before. Your search terms and selected product barcode are sent to Open Food Facts. You can instead enter a new food using values from its label per 100 g.'),
+          _HelpEntry(Icons.scale_rounded, 'Amount eaten',
+              'Enter the amount in grams. The app scales the per-100 g values to that amount.'),
+          _HelpEntry(Icons.track_changes_rounded, 'Calorie goal',
+              'Set your own daily target. The bullseye marks it on the calorie scale.'),
+        ]),
+        _HelpSection('Trends', 'Totals use only your saved food entries.', [
+          _HelpEntry(Icons.bar_chart_rounded, 'Macro balance',
+              'The colored bar shows the share of logged energy from carbs, fat, and protein. The displayed ranges are general adult references, not a personal prescription.'),
+          _HelpEntry(Icons.show_chart_rounded, 'Seven day intake',
+              'Bars show logged calories for each of the last seven days, including today. A zero can mean no foods were logged.'),
+          _HelpEntry(Icons.water_drop_outlined, 'Water',
+              'Tap +250 ml to log a drink. The daily total, individual entries with times, and seven-day chart use your saved water entries. Set a personal goal with the bullseye; the scale spans 0 to 4,000 ml.'),
+        ]),
+        _HelpSection(
+            'Blood Glucose',
+            'Patient-entered meter readings and insulin doses are tracked separately from verified laboratory results.',
+            [
+              _HelpEntry(Icons.bloodtype_outlined, 'Reading types',
+                  'Select Fasting, Post-meal or General and enter the measured blood glucose in mg/dL. The app does not infer a reading type.'),
+              _HelpEntry(Icons.vaccines_rounded, 'Insulin doses',
+                  'Log an insulin dose already taken in units (U). This is not a blood insulin test and does not provide dosing advice.'),
+              _HelpEntry(Icons.show_chart_rounded, 'Seven-day trends',
+                  'Glucose charts show the latest reading of each type per day. The insulin chart shows the sum of logged doses for that day. A gap means no entry.'),
+            ]),
+      ],
+      'Open Food Facts is community contributed; check product labels. Glucose and insulin logging does not diagnose a condition or change treatment. Seek professional advice for concerning readings or dose questions.',
+    ),
+    'Mindfulness': _HelpContent(
+      'Mindfulness',
+      'Use Mood to record how you feel, Breathing for timed guided exercises, and Meditation to play soundscapes and review your session history.',
+      [
+        _HelpSection('Mood', 'Entries belong to your patient account.', [
+          _HelpEntry(Icons.mood_rounded, 'Current mood',
+              'The animated icon and text show your most recent entry today. Earlier entries appear with their times.'),
+          _HelpEntry(Icons.add_reaction_outlined, 'Log Mood',
+              'Choose Amazing, Good, Fine, Bad or Horrible, then select a suggested emotion and reason or type your own.'),
+          _HelpEntry(Icons.bar_chart_rounded, 'Seven-day graph',
+              'Each day’s icon represents the average of moods you logged that day. A gap means no mood was recorded.'),
+        ]),
+        _HelpSection('Breathing and Meditation',
+            'Choose a comfortable pace and stop a session whenever you wish.', [
+          _HelpEntry(Icons.air_rounded, 'Breathing',
+              'Box, 4-7-8, belly and custom patterns have adjustable durations. The custom pattern also lets you change the inhale, hold and exhale counts. The graph shows session count and total duration over seven days.'),
+          _HelpEntry(Icons.self_improvement_rounded, 'Meditation',
+              'Browse Sleep, Ambient, Nature and Instrumental soundscapes. Tap a card to play, pause or seek within a track. Ending a session records listening time in the seven-day table.'),
+        ]),
+      ],
+      'Mood tracking is for personal reflection, not diagnosis or treatment. If you feel unsafe or overwhelmed, seek support from a qualified professional or local emergency service.',
     ),
     'Meal Plan': _HelpContent(
       'Meal guidance',
@@ -171,10 +290,34 @@ class ScreenHelpButton extends StatelessWidget {
               _HelpEntry(Icons.info_outline_rounded, 'Factors to discuss',
                   'Only relevant score-raising model factors add context. They are statistical contributions, not proven causes.'),
               _HelpEntry(Icons.picture_as_pdf_outlined, 'Generate PDF',
-                  'Creates a local PDF and opens the device share or save options. It contains the currently displayed guidance.'),
+                  'Opens a PDF preview with share and save actions. It contains the currently displayed guidance.'),
             ]),
       ],
       'Educational guidance only. Risk scores cannot determine an individualized diet. Review allergies, medicines, pregnancy, kidney disease, and other needs with a qualified clinician or dietitian.',
+    ),
+    'Fitness': _HelpContent(
+      'Fitness tracking',
+      'Daily Activity displays measurements you record. Body Metrics uses your saved health profile height and weight. Generate Fitness Routine opens general activity guidance.',
+      [
+        _HelpSection('Daily Activity', 'No activity values are estimated.', [
+          _HelpEntry(Icons.directions_run_rounded, 'Steps and activity time',
+              'Log readings from a tracker or activity record. The colored rings use display scales, not personal goals.'),
+          _HelpEntry(Icons.local_fire_department_outlined, 'Activity calories',
+              'Only calories entered as activity burn are counted; resting energy expenditure is not estimated.'),
+          _HelpEntry(Icons.bar_chart_rounded, 'Seven-day charts',
+              'Each chart summarizes your logged entries for that date.'),
+        ]),
+        _HelpSection('Body Metrics',
+            'Saved weight updates also appear in Health Data Input.', [
+          _HelpEntry(Icons.monitor_weight_rounded, 'Weight',
+              'Record a measured weight. BMI is calculated from weight and your saved height.'),
+          _HelpEntry(Icons.accessibility_new_rounded, 'Body composition',
+              'Skeletal muscle and body fat can be recorded separately; neither calculates BMI.'),
+          _HelpEntry(Icons.show_chart_rounded, 'Weekly body trends',
+              'Weight and BMI show the latest recorded reading in each of the past seven calendar weeks. A gap means no reading was recorded that week.'),
+        ]),
+      ],
+      'BMI is a screening measure, not a diagnosis or personalized weight target. Discuss goals and exercise safety with your clinician.',
     ),
     'Fitness Routine': _HelpContent(
       'Fitness guidance',
@@ -198,14 +341,14 @@ class ScreenHelpButton extends StatelessWidget {
               _HelpEntry(Icons.info_outline_rounded, 'Factors to discuss',
                   'Model contributors are presented as discussion points, not exercise prescriptions.'),
               _HelpEntry(Icons.picture_as_pdf_outlined, 'Generate PDF',
-                  'Creates a local PDF with the same guidance and opens device share or save options.'),
+                  'Opens a PDF preview with share and save actions for the same guidance.'),
             ]),
       ],
       'Educational activity guidance only. A model score cannot establish exercise safety. Stop for chest pain, dizziness, or unusual breathlessness and seek medical advice.',
     ),
     'Dashboard': _HelpContent(
         'Patient dashboard',
-        'A quick view of your most recently saved health information and analyses.',
+        'A quick view of your most recently saved risk analyses and health measurements. Returning to this tab refreshes the values.',
         [
           _HelpSection('At a glance',
               'Values come from your account and recorded history.', [
@@ -217,10 +360,16 @@ class ScreenHelpButton extends StatelessWidget {
                 'Shows the latest recorded measurements and their available timestamps.'),
             _HelpEntry(Icons.edit_note_rounded, 'Update Health Metrics',
                 'Opens the Health Data Input screen.'),
-            _HelpEntry(Icons.restaurant_menu_rounded, 'Meal Plan',
-                'Opens flexible food-group guidance based on the latest available model results.'),
-            _HelpEntry(Icons.fitness_center_rounded, 'Fitness Routine',
-                'Opens a gradual activity framework with safety context.'),
+            _HelpEntry(Icons.restaurant_menu_rounded, 'Nutrition',
+                'Open food, water, and blood-glucose logs or generate flexible meal guidance from your latest available analyses.'),
+            _HelpEntry(Icons.fitness_center_rounded, 'Fitness',
+                'Open activity and body metrics or generate a gradual activity framework.'),
+            _HelpEntry(Icons.self_improvement_rounded, 'Mindfulness',
+                'Open mood, breathing, and meditation tools.'),
+            _HelpEntry(Icons.watch_rounded, 'Wearable status',
+                'A connected wearable can update supported vitals. The badge shows whether readings are arriving.'),
+            _HelpEntry(Icons.notifications_outlined, 'Risk alerts',
+                'The notification badge reflects the latest medium or high analysis and opens a filtered history view.'),
           ]),
         ],
         'Risk scores are estimates, not diagnoses. A recent measurement may differ from your current condition.'),
@@ -257,8 +406,8 @@ class ScreenHelpButton extends StatelessWidget {
         ],
         'Changes in model scores do not prove that a disease has developed or improved.'),
     'Assistant': _HelpContent(
-        'Drug Assistant',
-        'Ask a specific question about a named medication. The assistant retrieves eligible reviewed evidence for the topic you ask about.',
+        'RiskSense Assistant',
+        'Ask about a named medicine for reviewed educational evidence. Patient accounts can manage a self-reported medication list and summarize their own recorded health trends with text commands.',
         [
           _HelpSection('How answers work',
               'Evidence availability varies by medicine and question.', [
@@ -271,11 +420,33 @@ class ScreenHelpButton extends StatelessWidget {
             _HelpEntry(Icons.forum_outlined, 'Conversation',
                 'Messages are saved to the authorized patient conversation.'),
           ]),
+          _HelpSection(
+              'Medication list commands',
+              'These commands use your patient medication records. They do not verify a prescription or change treatment.',
+              [
+                _HelpEntry(Icons.add_rounded, 'Add medication',
+                    'Type: add medication name + optional routine + optional dosage. Example: add medication metformin + every morning + 500 mg.'),
+                _HelpEntry(Icons.list_alt_rounded, 'View medication',
+                    'Type: view medication. Active saved entries show their recorded routine and dosage when supplied.'),
+                _HelpEntry(
+                    Icons.remove_circle_outline_rounded,
+                    'Remove medication',
+                    'Type: remove medication name. Only one exact active name match is deactivated; duplicate names require review.'),
+              ]),
+          _HelpSection(
+              'Your recorded health trends',
+              'This is a read-only summary of your authorized measurements from the past seven days. It does not use the Drug Assistant evidence model.',
+              [
+                _HelpEntry(Icons.show_chart_rounded, 'Show my health trends',
+                    'Summarizes available blood pressure, heart rate, fasting laboratory glucose, total cholesterol, weight, and BMI readings with dates.'),
+                _HelpEntry(Icons.monitor_heart_outlined, 'Ask about one topic',
+                    'For example, type: show my blood pressure trend. Missing readings are never treated as zero.'),
+              ]),
         ],
-        'Educational information cannot prescribe, diagnose, or decide whether a medicine is safe for you. Consult your prescriber or pharmacist.'),
+        'Medication entries are patient reported. Removing one from the app does not mean you should stop taking it. Educational information cannot prescribe, diagnose, or establish safety; consult your prescriber or pharmacist.'),
     'My Profile': _HelpContent(
         'My profile',
-        'Review your account identity and current access information.',
+        'Review account identity, access information, and the shortcut to device settings.',
         [
           _HelpSection('Account details',
               'These values come from backend account records.', [
@@ -287,6 +458,8 @@ class ScreenHelpButton extends StatelessWidget {
                 'Review subscription or insurance-linked status and any linked clinician shown.'),
             _HelpEntry(Icons.logout_rounded, 'Sign out',
                 'End your local application session.'),
+            _HelpEntry(Icons.settings_outlined, 'Settings',
+                'Manage appearance, accessibility, risk alerts, password, and signed-in sessions.'),
           ]),
         ],
         'Contact support if account or access details appear incorrect. Do not share your login credentials.'),
@@ -449,141 +622,143 @@ class ScreenHelpButton extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) => IconButton(
-        tooltip: 'About this screen',
-        icon: const Icon(Icons.help_outline_rounded,
-            color: AppColors.primaryBlue, size: 23),
-        onPressed: () {
-          final detail = _content[topic] ??
-              _HelpContent(
-                  topic,
-                  'Review the information and actions available on this screen.',
-                  const [],
-                  'Confirm important health or account information with an appropriate professional.');
-          showDialog<void>(
-            context: context,
-            builder: (dialogContext) => Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(22)),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 460,
-                  maxHeight: MediaQuery.sizeOf(dialogContext).height * .82,
-                ),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
-                    child: Row(children: [
-                      Container(
-                        padding: const EdgeInsets.all(9),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceBlue,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Icon(Icons.help_outline_rounded,
-                            color: AppColors.primaryBlue),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                          child: Text(detail.title,
-                              style:
-                                  Theme.of(context).textTheme.headlineSmall)),
-                      IconButton(
-                        tooltip: 'Close help',
-                        onPressed: () => Navigator.pop(dialogContext),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ]),
-                  ),
-                  Flexible(
-                      child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(detail.intro,
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  height: 1.45)),
-                          for (final section in detail.sections) ...[
-                            const SizedBox(height: 18),
-                            Text(section.title,
-                                style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary)),
-                            const SizedBox(height: 4),
-                            Text(section.context,
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    height: 1.4)),
-                            const SizedBox(height: 8),
-                            for (final entry in section.entries)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 6),
-                                child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(entry.icon,
-                                          size: 21,
-                                          color: AppColors.primaryBlue),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                          child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(entry.label,
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  color:
-                                                      AppColors.textPrimary)),
-                                          const SizedBox(height: 2),
-                                          Text(entry.detail,
-                                              style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                  height: 1.4)),
-                                        ],
-                                      )),
-                                    ]),
-                              ),
-                          ],
-                          const SizedBox(height: 20),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(13),
-                            decoration: BoxDecoration(
-                              color: AppColors.amber.withValues(alpha: .09),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color:
-                                      AppColors.amber.withValues(alpha: .22)),
-                            ),
-                            child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.info_outline_rounded,
-                                      size: 18, color: AppColors.amber),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                      child: Text(detail.disclaimer,
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: AppColors.textSecondary,
-                                              height: 1.45))),
-                                ]),
-                          ),
-                        ]),
-                  )),
-                ]),
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return IconButton(
+      tooltip: 'About this screen',
+      icon: Icon(Icons.help_outline_rounded,
+          color: AppColors.primaryBlue, size: 23),
+      onPressed: () {
+        final detail = _content[topic] ??
+            _HelpContent(
+                topic,
+                'Review the information and actions available on this screen.',
+                const [],
+                'Confirm important health or account information with an appropriate professional.');
+        showDialog<void>(
+          context: context,
+          builder: (dialogContext) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            backgroundColor: AppColors.cardWhite,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 460,
+                maxHeight: MediaQuery.sizeOf(dialogContext).height * .82,
               ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [AppColors.heroStart, AppColors.heroEnd]),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.help_outline_rounded, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(detail.title,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 19))),
+                    IconButton(
+                      tooltip: 'Close help',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    ),
+                  ]),
+                ),
+                Flexible(child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceBlue,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: .20)),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('ABOUT THIS SCREEN', style: TextStyle(
+                            color: AppColors.primaryBlue, fontSize: 10,
+                            fontWeight: FontWeight.w700, letterSpacing: 1.1)),
+                        const SizedBox(height: 7),
+                        Text(detail.intro, style: TextStyle(
+                            color: AppColors.textPrimary, height: 1.45)),
+                      ]),
+                    ),
+                    for (final section in detail.sections) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardWhite,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(section.title, style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary)),
+                          const SizedBox(height: 5),
+                          Text(section.context, style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary, height: 1.4)),
+                          for (final entry in section.entries) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceTeal,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.teal.withValues(alpha: .20)),
+                              ),
+                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Icon(entry.icon, size: 21, color: AppColors.teal),
+                                const SizedBox(width: 10),
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(entry.label, style: TextStyle(
+                                      fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                                  const SizedBox(height: 3),
+                                  Text(entry.detail, style: TextStyle(
+                                      fontSize: 12, color: AppColors.textSecondary, height: 1.4)),
+                                ])),
+                              ]),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.amber.withValues(alpha: .11),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.amber.withValues(alpha: .35)),
+                      ),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 21),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(detail.disclaimer, style: TextStyle(
+                            fontSize: 12, color: AppColors.textPrimary, height: 1.4))),
+                      ]),
+                    ),
+                  ]),
+                )),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
+                  child: SizedBox(width: double.infinity, child: FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Done'),
+                  )),
+                ),
+              ]),
             ),
-          );
-        },
-      );
+          ),
+        );
+      },
+    );
+  }
 }
