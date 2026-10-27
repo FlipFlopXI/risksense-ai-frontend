@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:medguide/theme/app_theme.dart';
+import 'package:medguide/services/app_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -13,7 +14,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  static const _splashDuration = Duration(milliseconds: 4600);
+  static const _splashDuration = Duration(milliseconds: 5500);
   late final AnimationController _controller;
   late final Animation<double> _logoFade;
   late final Animation<double> _logoScale;
@@ -50,6 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -102,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
                         const SizedBox(height: 27),
                         FadeTransition(
                           opacity: _detailsFade,
-                          child: const Text(
+                          child: Text(
                             'Secure Clinical Decision Support',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -120,10 +122,9 @@ class _SplashScreenState extends State<SplashScreen>
                             width: math.min(screenWidth - 56, 350),
                             padding: const EdgeInsets.fromLTRB(18, 13, 18, 11),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.86),
+                              color: AppColors.cardWhite.withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(22),
-                              border:
-                                  Border.all(color: const Color(0xFFD5EBFA)),
+                              border: Border.all(color: AppColors.border),
                             ),
                             child: Column(
                               children: [
@@ -140,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 3),
-                                const Text(
+                                Text(
                                   'Preparing your experience',
                                   style: TextStyle(
                                     color: AppColors.textSecondary,
@@ -157,7 +158,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 bottom: 25,
                 right: 24,
                 child: SafeArea(
@@ -181,31 +182,52 @@ class _SplashBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE0F3FF), Color(0xFFF4FAFF), Colors.white],
-          stops: [0, 0.55, 1],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(child: CustomPaint(painter: _GridPainter())),
-          Positioned(
-            top: -120,
-            right: -110,
-            child: _Halo(size: 300, color: Color(0xFFB8E2FA)),
-          ),
-          Positioned(
-            bottom: -135,
-            left: -105,
-            child: _Halo(size: 330, color: Color(0xFFCDEBFB)),
-          ),
-        ],
-      ),
-    );
+    Theme.of(context);
+    return AnimatedBuilder(
+        animation: AppPreferences.instance,
+        builder: (context, _) => DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: AppColors.dark
+                      ? [
+                          const Color(0xFF163653),
+                          const Color(0xFF101F32),
+                          AppColors.background
+                        ]
+                      : const [
+                          Color(0xFFE0F3FF),
+                          Color(0xFFF4FAFF),
+                          Colors.white
+                        ],
+                  stops: [0, 0.55, 1],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(child: CustomPaint(painter: _GridPainter())),
+                  Positioned(
+                    top: -120,
+                    right: -110,
+                    child: _Halo(
+                        size: 300,
+                        color: AppColors.dark
+                            ? const Color(0xFF315C7C)
+                            : const Color(0xFFB8E2FA)),
+                  ),
+                  Positioned(
+                    bottom: -135,
+                    left: -105,
+                    child: _Halo(
+                        size: 330,
+                        color: AppColors.dark
+                            ? const Color(0xFF234B64)
+                            : const Color(0xFFCDEBFB)),
+                  ),
+                ],
+              ),
+            ));
   }
 }
 
@@ -215,7 +237,9 @@ class _Halo extends StatelessWidget {
   const _Halo({required this.size, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
@@ -225,6 +249,7 @@ class _Halo extends StatelessWidget {
               Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
         ),
       );
+  }
 }
 
 class _EcgPainter extends CustomPainter {

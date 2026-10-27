@@ -5,6 +5,7 @@ import 'package:medguide/screens/patient/patient_access_gate.dart';
 import 'package:medguide/screens/clinician/clinician_workspace.dart';
 import 'package:medguide/screens/admin/admin_dashboard.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/screens/auth/forgot_password_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,10 +31,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     setState(() {
-      _emailError = email.isEmpty ? 'Enter your email address.'
+      _emailError = email.isEmpty
+          ? 'Enter your email address.'
           : !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)
-              ? 'Enter a valid email address.' : null;
-      _passwordError = _passwordController.text.isEmpty ? 'Enter your password.' : null;
+              ? 'Enter a valid email address.'
+              : null;
+      _passwordError =
+          _passwordController.text.isEmpty ? 'Enter your password.' : null;
     });
     if (_emailError != null || _passwordError != null) return;
     setState(() => _isLoading = true);
@@ -55,9 +59,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (error.statusCode == 401) {
         setState(() => _passwordError = 'Email or password is incorrect.');
       } else {
-        await showDialog<void>(context: context, builder: (dialog) => AlertDialog(
-          title: const Text('Sign-in Unavailable'), content: Text(error.message),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
+        await showDialog<void>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                    title: const Text('Sign-in Unavailable'),
+                    content: Text(error.message),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialog),
+                          child: const Text('Dismiss'))
+                    ]));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -66,6 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -84,7 +96,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Semantics(
                         label: 'RiskSense AI logo',
                         child: Image.asset(
-                          'assets/images/risksense_logo.jpg',
+                          AppColors.dark
+                              ? 'assets/images/risksense_logo_dark.png'
+                              : 'assets/images/risksense_logo.jpg',
                           width: 230,
                           height: 230,
                           fit: BoxFit.contain,
@@ -108,13 +122,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Email
                 TextField(
                   controller: _emailController,
-                  onChanged: (_) { if (_emailError != null) setState(() => _emailError = null); },
+                  onChanged: (_) {
+                    if (_emailError != null) setState(() => _emailError = null);
+                  },
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     labelText: 'Email address',
                     hintText: 'you@example.com',
                     errorText: _emailError,
-                    prefixIcon: const Icon(Icons.mail_outline_rounded,
+                    prefixIcon: Icon(Icons.mail_outline_rounded,
                         size: 20, color: AppColors.textSecondary),
                   ),
                 ),
@@ -123,13 +139,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password
                 TextField(
                   controller: _passwordController,
-                  onChanged: (_) { if (_passwordError != null) setState(() => _passwordError = null); },
+                  onChanged: (_) {
+                    if (_passwordError != null) {
+                      setState(() => _passwordError = null);
+                    }
+                  },
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Password',
                     errorText: _passwordError,
                     hintText: '••••••••',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded,
+                    prefixIcon: Icon(Icons.lock_outline_rounded,
                         size: 20, color: AppColors.textSecondary),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -149,8 +169,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
-                    child: const Text(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => ForgotPasswordDialog(
+                          initialEmail: _emailController.text.trim()),
+                    ),
+                    child: Text(
                       'Forgot Password?',
                       style:
                           TextStyle(fontSize: 13, color: AppColors.primaryBlue),
@@ -180,16 +204,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 28),
 
-                const Row(
+                Row(
                   children: [
-                    Expanded(child: Divider()),
+                    const Expanded(child: Divider()),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text('or',
                           style: TextStyle(
                               fontSize: 13, color: AppColors.textLight)),
                     ),
-                    Expanded(child: Divider()),
+                    const Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -214,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {},
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.teal,
-                      side: const BorderSide(color: AppColors.teal, width: 1.5),
+                      side: BorderSide(color: AppColors.teal, width: 1.5),
                     ),
                   ),
                 ),

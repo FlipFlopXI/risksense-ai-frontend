@@ -7,9 +7,11 @@ import 'package:medguide/screens/admin/admin_dashboard.dart';
 import 'package:medguide/screens/clinician/clinician_workspace.dart';
 import 'package:medguide/screens/patient/patient_access_gate.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/services/app_preferences.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  AppPreferences.instance.load();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -30,18 +32,44 @@ class MedSurrogateApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'RiskSense AI',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      onGenerateRoute: (settings) {
-        if (settings.name == '/activation-return' || settings.name == 'risksense://activation-return') {
-          return MaterialPageRoute(builder: (_) => const PatientAccessGate());
-        }
-        return null;
-      },
-      home: const AppEntry(),
-    );
+    return AnimatedBuilder(
+        animation: AppPreferences.instance,
+        builder: (context, _) => MaterialApp(
+              title: 'RiskSense AI',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              themeAnimationDuration: Duration.zero,
+              builder: (context, child) {
+                final media = MediaQuery.of(context);
+                final dark = AppPreferences.instance.darkMode;
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: SystemUiOverlayStyle(
+                      statusBarColor: Colors.transparent,
+                      statusBarIconBrightness:
+                          dark ? Brightness.light : Brightness.dark,
+                      systemNavigationBarColor: AppColors.background,
+                      systemNavigationBarIconBrightness:
+                          dark ? Brightness.light : Brightness.dark,
+                    ),
+                    child: MediaQuery(
+                        data: media.copyWith(
+                            textScaler: TextScaler.linear(
+                                media.textScaler.scale(1) *
+                                    AppPreferences.instance.textScale),
+                            disableAnimations:
+                                AppPreferences.instance.reduceMotion),
+                        child: child ?? const SizedBox.shrink()));
+              },
+              onGenerateRoute: (settings) {
+                if (settings.name == '/activation-return' ||
+                    settings.name == 'risksense://activation-return') {
+                  return MaterialPageRoute(
+                      builder: (_) => const PatientAccessGate());
+                }
+                return null;
+              },
+              home: const AppEntry(),
+            ));
   }
 }
 

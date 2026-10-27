@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medguide/theme/app_theme.dart';
-import 'package:medguide/screens/patient/patient_access_gate.dart';
+import 'package:medguide/screens/auth/email_verification_screen.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/widgets/screen_help.dart';
 
@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       lastDate: DateTime.now().subtract(const Duration(days: 365)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
+          colorScheme: ColorScheme.light(
             primary: AppColors.primaryBlue,
             onPrimary: Colors.white,
           ),
@@ -50,7 +50,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
     if (picked != null) {
-      setState(() { _selectedDOB = picked; _errors.remove('dob'); });
+      setState(() {
+        _selectedDOB = picked;
+        _errors.remove('dob');
+      });
     }
   }
 
@@ -60,28 +63,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errors.clear();
       if (names.length < 2 || names.any((name) => name.isEmpty)) {
         _errors['name'] = 'Enter your first and last name.';
-      } else if (names.first.length > 100 || names.skip(1).join(' ').length > 100) {
+      } else if (names.first.length > 100 ||
+          names.skip(1).join(' ').length > 100) {
         _errors['name'] = 'Each name must be 100 characters or fewer.';
       }
       final email = _emailController.text.trim();
-      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) _errors['email'] = 'Enter a valid email address.';
+      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+        _errors['email'] = 'Enter a valid email address.';
+      }
       final password = _passwordController.text;
       if (password.length < 6 || password.length > 128) {
         _errors['password'] = 'Use at least 6 characters (maximum 128).';
       } else if (!RegExp(r'[A-Z]').hasMatch(password) ||
           !RegExp(r'[0-9]').hasMatch(password) ||
           !RegExp(r'[^A-Za-z0-9\s]').hasMatch(password)) {
-        _errors['password'] = 'Include a capital letter, number, and special character.';
+        _errors['password'] =
+            'Include a capital letter, number, and special character.';
       }
-      if (_confirmPasswordController.text != _passwordController.text) _errors['confirm'] = 'Passwords do not match.';
+      if (_confirmPasswordController.text != _passwordController.text) {
+        _errors['confirm'] = 'Passwords do not match.';
+      }
       if (_selectedDOB == null) _errors['dob'] = 'Select your date of birth.';
-      if (_selectedGender.isEmpty) _errors['gender'] = 'Select a gender option.';
-      if (!_consentGiven) _errors['consent'] = 'Consent is required to create an account.';
+      if (_selectedGender.isEmpty) {
+        _errors['gender'] = 'Select a gender option.';
+      }
+      if (!_consentGiven) {
+        _errors['consent'] = 'Consent is required to create an account.';
+      }
     });
     if (_errors.isNotEmpty) return;
     setState(() => _isLoading = true);
     try {
-      await ApiClient.instance.register({
+      final pending = await ApiClient.instance.register({
         'email': _emailController.text.trim(),
         'password': _passwordController.text,
         'first_name': names.first,
@@ -89,20 +102,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'date_of_birth': _selectedDOB!.toIso8601String().split('T').first,
         'gender': _selectedGender,
       });
-      await ApiClient.instance
-          .login(_emailController.text, _passwordController.text);
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const PatientAccessGate()),
-          (_) => false);
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => EmailVerificationScreen(
+                email: pending['email']?.toString() ??
+                    _emailController.text.trim(),
+                password: _passwordController.text,
+                codeLength: pending['code_length'] as int? ?? 6,
+                resendAfterSeconds:
+                    pending['resend_after_seconds'] as int? ?? 60,
+              )));
     } on ApiException catch (error) {
       if (!mounted) return;
       if (error.statusCode == 409) {
-        setState(() => _errors['email'] = 'This email address is already registered.');
+        setState(() =>
+            _errors['email'] = 'This email address is already registered.');
       } else {
-        await showDialog<void>(context: context, builder: (dialog) => AlertDialog(
-          title: const Text('Registration Unavailable'), content: Text(error.message),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
+        await showDialog<void>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                    title: const Text('Registration Unavailable'),
+                    content: Text(error.message),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialog),
+                          child: const Text('Dismiss'))
+                    ]));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -111,13 +136,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.cardWhite,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               size: 18, color: AppColors.primaryBlue),
           onPressed: () => Navigator.pop(context),
         ),
@@ -149,7 +175,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: InputDecoration(
                   hintText: 'John Smith',
                   errorText: _errors['name'],
-                  prefixIcon: const Icon(Icons.person_outline_rounded,
+                  prefixIcon: Icon(Icons.person_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                 ),
               ),
@@ -163,16 +189,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: InputDecoration(
                   hintText: 'john@email.com',
                   errorText: _errors['email'],
-                  prefixIcon: const Icon(Icons.mail_outline_rounded,
+                  prefixIcon: Icon(Icons.mail_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                 ),
               ),
               const SizedBox(height: 14),
 
               _label('Password'),
-              const Padding(padding: EdgeInsets.only(bottom: 6),
-                child: Text('At least 6 characters, including a capital letter, number, and special character.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                      'At least 6 characters, including a capital letter, number, and special character.',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary))),
               TextField(
                 controller: _passwordController,
                 onChanged: (_) => setState(() => _errors.remove('password')),
@@ -180,7 +209,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: InputDecoration(
                   hintText: '••••••••',
                   errorText: _errors['password'],
-                  prefixIcon: const Icon(Icons.lock_outline_rounded,
+                  prefixIcon: Icon(Icons.lock_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -205,7 +234,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: InputDecoration(
                   hintText: '••••••••',
                   errorText: _errors['confirm'],
-                  prefixIcon: const Icon(Icons.lock_outline_rounded,
+                  prefixIcon: Icon(Icons.lock_outline_rounded,
                       size: 20, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -235,7 +264,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today_outlined,
+                      Icon(Icons.calendar_today_outlined,
                           size: 20, color: AppColors.textSecondary),
                       const SizedBox(width: 12),
                       Text(
@@ -253,8 +282,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              if (_errors['dob'] != null) Padding(padding: const EdgeInsets.only(top: 6),
-                child: Text(_errors['dob']!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
+              if (_errors['dob'] != null)
+                Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(_errors['dob']!,
+                        style:
+                            TextStyle(color: AppColors.danger, fontSize: 12))),
               const SizedBox(height: 14),
 
               _label('Gender'),
@@ -265,7 +298,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: GestureDetector(
-                            onTap: () => setState(() { _selectedGender = g; _errors.remove('gender'); }),
+                            onTap: () => setState(() {
+                              _selectedGender = g;
+                              _errors.remove('gender');
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
@@ -297,8 +333,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     )
                     .toList(),
               ),
-              if (_errors['gender'] != null) Padding(padding: const EdgeInsets.only(top: 6),
-                child: Text(_errors['gender']!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
+              if (_errors['gender'] != null)
+                Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(_errors['gender']!,
+                        style:
+                            TextStyle(color: AppColors.danger, fontSize: 12))),
               const SizedBox(height: 24),
 
               // Consent
@@ -306,13 +346,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _consentGiven
-                      ? AppColors.success.withOpacity(0.06)
-                      : AppColors.amber.withOpacity(0.06),
+                      ? AppColors.success.withValues(alpha: 0.06)
+                      : AppColors.amber.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _consentGiven
-                        ? AppColors.success.withOpacity(0.3)
-                        : AppColors.amber.withOpacity(0.3),
+                        ? AppColors.success.withValues(alpha: 0.3)
+                        : AppColors.amber.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -320,15 +360,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     Checkbox(
                       value: _consentGiven,
-                      onChanged: (v) =>
-                          setState(() { _consentGiven = v ?? false; _errors.remove('consent'); }),
+                      onChanged: (v) => setState(() {
+                        _consentGiven = v ?? false;
+                        _errors.remove('consent');
+                      }),
                       activeColor: AppColors.success,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4)),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.only(top: 12),
                         child: Text(
                           'I understand this is a decision-support system and not a diagnostic tool. I consent to my health data being processed for risk analysis purposes.',
                           style: TextStyle(
@@ -342,8 +384,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
               ),
-              if (_errors['consent'] != null) Padding(padding: const EdgeInsets.only(top: 6),
-                child: Text(_errors['consent']!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
+              if (_errors['consent'] != null)
+                Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(_errors['consent']!,
+                        style:
+                            TextStyle(color: AppColors.danger, fontSize: 12))),
               const SizedBox(height: 24),
 
               SizedBox(
@@ -360,7 +406,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('Create Account'),
+                      : const Text('Send Verification Code'),
                 ),
               ),
               const SizedBox(height: 24),
@@ -376,7 +422,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,

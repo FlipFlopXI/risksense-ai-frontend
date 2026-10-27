@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/services/vital_sync.dart';
 import 'package:medguide/screens/patient/patient_dashboard.dart';
 import 'package:medguide/screens/auth/login_screen.dart';
+import 'package:medguide/screens/patient/patient_onboarding_screen.dart';
 
 /// Checks FastAPI whenever the app returns from the activation website.
 class PatientAccessGate extends StatefulWidget {
@@ -17,6 +19,8 @@ class _PatientAccessGateState extends State<PatientAccessGate>
   bool _loading = true;
   bool _opening = false;
   bool _active = false;
+  bool _onboardingComplete = false;
+  String? _onboardingError;
   String? _error;
   int _refreshGeneration = 0;
 
@@ -41,11 +45,23 @@ class _PatientAccessGateState extends State<PatientAccessGate>
   Future<void> _refresh() async {
     if (!mounted) return;
     final generation = ++_refreshGeneration;
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loading = true; _error = null; _onboardingError = null; });
     try {
       final result = await ApiClient.instance.accessStatus();
       if (!mounted || generation != _refreshGeneration) return;
-      setState(() => _active = result['active'] == true && result['clinician_linked'] == true);
+      final active = result['active'] == true && result['clinician_linked'] == true;
+      if (active) {
+        try {
+          final onboarding = Map<String, dynamic>.from(await ApiClient.instance.get('/patients/onboarding') as Map);
+          if (!mounted || generation != _refreshGeneration) return;
+          setState(() { _active = true; _onboardingComplete = onboarding['completed'] == true; });
+        } on ApiException catch (error) {
+          if (!mounted || generation != _refreshGeneration) return;
+          setState(() { _active = true; _onboardingError = error.message; });
+        }
+      } else {
+        setState(() { _active = false; _onboardingComplete = false; });
+      }
     } on ApiException catch (error) {
       if (!mounted || generation != _refreshGeneration) return;
       setState(() { _active = false; _error = error.message; });
@@ -71,7 +87,17 @@ class _PatientAccessGateState extends State<PatientAccessGate>
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_active && _onboardingError != null) {
+      return Scaffold(body: Center(child: Padding(
+      padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(_onboardingError!, textAlign: TextAlign.center),
+        const SizedBox(height: 16), FilledButton(onPressed: _refresh, child: const Text('Retry')),
+      ]),
+      )));
+    }
+    if (_active && !_onboardingComplete) return const PatientOnboardingScreen();
     if (_active) return const PatientDashboard();
     return Scaffold(
       appBar: AppBar(title: const Text('Complete Registration')),
@@ -90,6 +116,7 @@ class _PatientAccessGateState extends State<PatientAccessGate>
             FilledButton(onPressed: _opening ? null : _openActivation, child: Text(_opening ? 'Opening…' : 'Complete Registration')),
             TextButton(onPressed: _refresh, child: const Text('Refresh access status')),
             TextButton(onPressed: () async {
+              VitalSync.instance.stop();
               try { await ApiClient.instance.logout(); } catch (_) { /* Secure storage is cleared in logout's finally block. */ }
               if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
