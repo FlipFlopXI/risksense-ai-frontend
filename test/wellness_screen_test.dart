@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medguide/features/wellness/wellness_screen.dart';
+import 'package:medguide/features/wellness/fitness_screen.dart';
+import 'package:medguide/features/wellness/nutrition_screen.dart';
 
 void main() {
   final dashboard = <String, dynamic>{
@@ -50,4 +52,17 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Nutrition and Fitness landing screens keep plan actions',
+      (tester) async {
+    await tester
+        .pumpWidget(MaterialApp(home: FitnessScreen(dashboard: dashboard)));
+    expect(find.text('Generate Fitness Routine'), findsOneWidget);
+    await tester
+        .pumpWidget(MaterialApp(home: NutritionScreen(dashboard: dashboard)));
+    await tester.pump();
+    expect(find.text('Generate Meal Plan'), findsOneWidget);
+    expect(find.text('Food'), findsOneWidget);
+    expect(find.text('Water'), findsOneWidget);
+  });
 }

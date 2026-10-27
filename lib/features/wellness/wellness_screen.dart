@@ -3,18 +3,21 @@ import 'package:intl/intl.dart';
 import 'package:medguide/features/wellness/wellness_plan.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/screen_help.dart';
+import 'package:medguide/widgets/pdf_report_preview.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 class MealPlanScreen extends StatelessWidget {
   final Map<String, dynamic> dashboard;
   const MealPlanScreen({super.key, required this.dashboard});
 
   @override
-  Widget build(BuildContext context) => _WellnessScreen(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return _WellnessScreen(
         plan: WellnessPlan.fromDashboard(WellnessKind.meal, dashboard),
       );
+  }
 }
 
 class FitnessRoutineScreen extends StatelessWidget {
@@ -22,9 +25,12 @@ class FitnessRoutineScreen extends StatelessWidget {
   const FitnessRoutineScreen({super.key, required this.dashboard});
 
   @override
-  Widget build(BuildContext context) => _WellnessScreen(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return _WellnessScreen(
         plan: WellnessPlan.fromDashboard(WellnessKind.fitness, dashboard),
       );
+  }
 }
 
 class _WellnessScreen extends StatefulWidget {
@@ -106,14 +112,25 @@ class _WellnessScreenState extends State<_WellnessScreen> {
           ),
         ],
       ));
-      await Printing.sharePdf(bytes: await pdf.save(), filename: plan.fileName);
+      final bytes = await pdf.save();
+      if (!mounted) return;
+      await PdfReportPreview.open(context,
+          title: plan.title, filename: plan.fileName, bytes: bytes);
     } catch (_) {
       if (mounted) {
-        showDialog<void>(context: context, builder: (dialog) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('PDF Unavailable'),
-          content: const Text('The PDF could not be generated. Please try again.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Dismiss'))]));
+        showDialog<void>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    title: const Text('PDF Unavailable'),
+                    content: const Text(
+                        'The PDF could not be generated. Please try again.'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialog),
+                          child: const Text('Dismiss'))
+                    ]));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -122,6 +139,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     final plan = widget.plan;
     final isMeal = plan.kind == WellnessKind.meal;
     final accent = isMeal ? AppColors.teal : AppColors.primaryBlue;
@@ -150,7 +168,12 @@ class _WellnessScreenState extends State<_WellnessScreen> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [accent, AppColors.primaryBlue],
+                          colors: [
+                            AppColors.dark
+                                ? Color.lerp(accent, Colors.black, .45)!
+                                : accent,
+                            AppColors.heroStart
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(22),
                       ),
@@ -206,7 +229,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
                         isMeal
                             ? 'Flexible food-group guidance. No fixed ingredients, calories, or medicine changes.'
                             : 'A gradual routine to discuss with your care team. No exercise intensity is inferred from a risk score.',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.textSecondary, height: 1.45)),
                     const SizedBox(height: 14),
                     for (var i = 0; i < plan.sections.length; i++) ...[
@@ -217,7 +240,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
                     Text('Factors to discuss',
                         style: Theme.of(context).textTheme.headlineSmall),
                     const SizedBox(height: 5),
-                    const Text(
+                    Text(
                         'Model contributions guide which topics appear here; they are not clinical causes.',
                         style: TextStyle(
                             color: AppColors.textSecondary,
@@ -235,14 +258,14 @@ class _WellnessScreenState extends State<_WellnessScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                   child: Text(item,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: AppColors.textSecondary,
                                           height: 1.45))),
                             ]),
                       ),
                     const SizedBox(height: 10),
                     Text(plan.sourceSummary,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.textSecondary, fontSize: 11)),
                     const SizedBox(height: 14),
                     Container(
@@ -255,7 +278,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
                             color: AppColors.amber.withValues(alpha: 0.22)),
                       ),
                       child: Text(plan.disclaimer,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.textSecondary, height: 1.45)),
                     ),
                   ],
@@ -264,7 +287,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
             ),
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border(top: BorderSide(color: AppColors.border))),
               child: SizedBox(
@@ -292,7 +315,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.cardWhite,
             borderRadius: BorderRadius.circular(15),
             border: Border.all(color: AppColors.border)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -303,8 +326,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 3),
           Text(value,
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary)),
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
         ]),
       );
 
@@ -330,7 +352,7 @@ class _WellnessScreenState extends State<_WellnessScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.cardWhite,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border)),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -347,13 +369,13 @@ class _WellnessScreenState extends State<_WellnessScreen> {
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(section.title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary)),
           const SizedBox(height: 4),
           Text(section.guidance,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.textSecondary, fontSize: 13, height: 1.5)),
         ])),
       ]),

@@ -33,6 +33,7 @@ dependencies:
 
   # Animations
   flutter_animate: ^4.5.0
+  just_audio: ^0.10.6
   pdf: ^3.12.0
   printing: ^5.14.3
 
@@ -45,3 +46,12 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/risksense_logo.jpg
+    - assets/images/risksense_logo_dark.png
+    - assets/images/email_verification.png
+    - assets/onboarding/
+    - assets/fonts/Rubik-Regular.ttf
+    - assets/fonts/Rubik-Medium.ttf
+    - assets/meditation/sleep/
+    - assets/meditation/ambient/
+    - assets/meditation/nature/
+    - assets/meditation/instrumental/

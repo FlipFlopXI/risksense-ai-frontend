@@ -11,10 +11,27 @@ import 'package:medguide/screens/shared/data_input_screen.dart';
 import 'package:medguide/screens/shared/history_screen.dart';
 import 'package:medguide/screens/shared/ai_assistant_screen.dart';
 import 'package:medguide/screens/patient/patient_profile_screen.dart';
-import 'package:medguide/features/wellness/wellness_screen.dart';
+import 'package:medguide/features/wellness/nutrition_screen.dart';
+import 'package:medguide/features/wellness/fitness_screen.dart';
+import 'package:medguide/features/wellness/mindfulness_screen.dart';
+import 'package:medguide/features/wellness/nutrition_data_source.dart';
+import 'package:medguide/features/wellness/glucose_data_source.dart';
+import 'package:medguide/features/wellness/fitness_data_source.dart';
+import 'package:medguide/features/wellness/mindfulness_data_source.dart';
+import 'package:medguide/services/vital_sync.dart';
+import 'package:medguide/services/app_preferences.dart';
+import 'package:medguide/widgets/wearable_sync_button.dart';
 
 class PatientDashboard extends StatefulWidget {
-  const PatientDashboard({super.key});
+  const PatientDashboard({super.key, this.previewData, this.previewNutrition,
+    this.previewGlucose, this.previewFitness, this.previewMindfulness});
+
+  /// Used only by the offline marketing screenshot generator; never persisted.
+  final Map<String, dynamic>? previewData;
+  final NutritionDataSource? previewNutrition;
+  final GlucoseDataSource? previewGlucose;
+  final FitnessDataSource? previewFitness;
+  final MindfulnessDataSource? previewMindfulness;
 
   @override
   State<PatientDashboard> createState() => _PatientDashboardState();
@@ -22,81 +39,103 @@ class PatientDashboard extends StatefulWidget {
 
 class _PatientDashboardState extends State<PatientDashboard> {
   int _currentIndex = 0;
-  int _dashboardEpoch = 0;
   int _healthEpoch = 0;
   int _historyEpoch = 0;
-  int _profileEpoch = 0;
+  final _visitedTabs = <int>{0};
   RiskLevelFilter _historyInitialLevel = RiskLevelFilter.all;
 
   void _openRiskHistory(RiskLevelFilter level) => setState(() {
         _historyInitialLevel = level;
         _historyEpoch++;
+        _visitedTabs.add(2);
         _currentIndex = 2;
+      });
+
+  void _metricsUpdated() => setState(() {
+        _healthEpoch++;
+        _historyEpoch++;
       });
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      _HomeTab(key: ValueKey(_dashboardEpoch), onRiskNotice: _openRiskHistory),
-      _HealthTab(key: ValueKey(_healthEpoch)),
-      HistoryScreen(
-          key: ValueKey(_historyEpoch), initialLevel: _historyInitialLevel),
-      const AiAssistantScreen(),
-      PatientProfileScreen(key: ValueKey(_profileEpoch)),
+    Theme.of(context);
+    final pages = <Widget>[
+      _visitedTabs.contains(0)
+          ? _HomeTab(
+              onRiskNotice: _openRiskHistory, onMetricsUpdated: _metricsUpdated,
+              previewData: widget.previewData,
+              previewNutrition: widget.previewNutrition,
+              previewGlucose: widget.previewGlucose,
+              previewFitness: widget.previewFitness,
+              previewMindfulness: widget.previewMindfulness)
+          : const SizedBox.shrink(),
+      _visitedTabs.contains(1)
+          ? _HealthTab(key: ValueKey(_healthEpoch))
+          : const SizedBox.shrink(),
+      _visitedTabs.contains(2)
+          ? HistoryScreen(
+              key: ValueKey(_historyEpoch), initialLevel: _historyInitialLevel)
+          : const SizedBox.shrink(),
+      _visitedTabs.contains(3)
+          ? const AiAssistantScreen()
+          : const SizedBox.shrink(),
+      _visitedTabs.contains(4)
+          ? const PatientProfileScreen()
+          : const SizedBox.shrink(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: pages),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.cardWhite,
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() {
-            _currentIndex = i;
-            _historyInitialLevel = RiskLevelFilter.all;
-            if (i == 0) _dashboardEpoch++;
-            if (i == 1) _healthEpoch++;
-            if (i == 2) _historyEpoch++;
-            if (i == 4) _profileEpoch++;
-          }),
-          selectedItemColor: AppColors.primaryBlue,
-          unselectedItemColor: AppColors.textLight,
-          backgroundColor: AppColors.cardWhite,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          selectedLabelStyle:
-              const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.monitor_heart_outlined),
-              activeIcon: Icon(Icons.monitor_heart_rounded),
-              label: 'Health',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history_rounded),
-              label: 'History',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline_rounded),
-              activeIcon: Icon(Icons.chat_bubble_rounded),
-              label: 'Assistant',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'Profile',
-            ),
-          ],
+      bottomNavigationBar: AnimatedBuilder(
+        animation: AppPreferences.instance,
+        builder: (context, _) => Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardWhite,
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (i) => setState(() {
+              _currentIndex = i;
+              _visitedTabs.add(i);
+              _historyInitialLevel = RiskLevelFilter.all;
+            }),
+            selectedItemColor: AppColors.primaryBlue,
+            unselectedItemColor: AppColors.textLight,
+            backgroundColor: AppColors.cardWhite,
+            elevation: 0,
+            type: BottomNavigationBarType.fixed,
+            selectedLabelStyle:
+                const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontSize: 11),
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard_outlined),
+                activeIcon: Icon(Icons.dashboard_rounded),
+                label: 'Dashboard',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.monitor_heart_outlined),
+                activeIcon: Icon(Icons.monitor_heart_rounded),
+                label: 'Health',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history_outlined),
+                activeIcon: Icon(Icons.history_rounded),
+                label: 'History',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.chat_bubble_outline_rounded),
+                activeIcon: Icon(Icons.chat_bubble_rounded),
+                label: 'Assistant',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline_rounded),
+                activeIcon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -106,7 +145,15 @@ class _PatientDashboardState extends State<PatientDashboard> {
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 class _HomeTab extends StatefulWidget {
   final ValueChanged<RiskLevelFilter> onRiskNotice;
-  const _HomeTab({super.key, required this.onRiskNotice});
+  final VoidCallback onMetricsUpdated;
+  final Map<String, dynamic>? previewData;
+  final NutritionDataSource? previewNutrition;
+  final GlucoseDataSource? previewGlucose;
+  final FitnessDataSource? previewFitness;
+  final MindfulnessDataSource? previewMindfulness;
+  const _HomeTab({required this.onRiskNotice, required this.onMetricsUpdated,
+    this.previewData, this.previewNutrition, this.previewGlucose,
+    this.previewFitness, this.previewMindfulness});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -114,13 +161,50 @@ class _HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<_HomeTab> {
   static const _noticeStorage = FlutterSecureStorage();
-  late Future<Map<String, dynamic>> _dashboard = _load();
+  Map<String, dynamic>? _lastDashboard;
+  late Future<Map<String, dynamic>> _dashboard = _loadDashboard();
+
+  Future<Map<String, dynamic>> _loadDashboard() async {
+    final data = widget.previewData == null
+        ? await _load()
+        : Map<String, dynamic>.from(widget.previewData!);
+    _lastDashboard = data;
+    return data;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    VitalSync.instance.addListener(_refreshVitalDisplay);
+    AppPreferences.instance.addListener(_refreshVitalDisplay);
+  }
+
+  void _refreshVitalDisplay() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    VitalSync.instance.removeListener(_refreshVitalDisplay);
+    AppPreferences.instance.removeListener(_refreshVitalDisplay);
+    super.dispose();
+  }
 
   Future<Map<String, dynamic>> _load() async {
-    final data = Map<String, dynamic>.from(
-        await ApiClient.instance.get('/dashboard'));
-    final user = Map<String, dynamic>.from(
-        await ApiClient.instance.get('/auth/me'));
+    final results = await Future.wait([
+      ApiClient.instance.get('/dashboard'),
+      ApiClient.instance.get('/auth/me'),
+      ApiClient.instance.get('/health/vitals/latest').onError((error, stack) {
+        if (error is ApiException && error.statusCode == 404) return null;
+        throw error as Object;
+      }),
+    ]);
+    final data = Map<String, dynamic>.from(results[0] as Map);
+    final user = Map<String, dynamic>.from(results[1] as Map);
+    VitalSync.instance.ensureUser(user['id']?.toString());
+    if (results[2] is Map) {
+      data['_vital_recorded_at'] = (results[2] as Map)['recorded_at'];
+    }
     final noticeKey = 'risk_notice_seen_${user['id']}';
     data['_notice_key'] = noticeKey;
     data['_seen_prediction'] = await _noticeStorage.read(key: noticeKey);
@@ -136,23 +220,25 @@ class _HomeTabState extends State<_HomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return FutureBuilder<Map<String, dynamic>>(
       future: _dashboard,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            _lastDashboard == null) {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && _lastDashboard == null) {
           return Scaffold(
               body: Center(
                   child: ElevatedButton(
                       onPressed: () => setState(() {
-                            _dashboard = _load();
+                            _dashboard = _loadDashboard();
                           }),
                       child: const Text('Retry dashboard'))));
         }
-        return _content(context, snapshot.data!);
+        return _content(context, snapshot.data ?? _lastDashboard!);
       },
     );
   }
@@ -172,15 +258,21 @@ class _HomeTabState extends State<_HomeTab> {
     final diabetes = prediction('diabetes_risk');
     final heart = prediction('heart_disease');
     final newest = [...predictions]..sort((a, b) =>
-        (DateTime.tryParse(b['predicted_at']?.toString() ?? '') ?? DateTime(1970))
-            .compareTo(DateTime.tryParse(a['predicted_at']?.toString() ?? '') ?? DateTime(1970)));
+        (DateTime.tryParse(b['predicted_at']?.toString() ?? '') ??
+                DateTime(1970))
+            .compareTo(DateTime.tryParse(a['predicted_at']?.toString() ?? '') ??
+                DateTime(1970)));
     final latest = newest.isEmpty ? null : newest.first;
     final latestScore = (latest?['risk_score'] as num?)?.toDouble();
     final noticeLevel = latestScore == null || latestScore < .35
         ? null
-        : latestScore >= .65 ? RiskLevelFilter.high : RiskLevelFilter.moderate;
+        : latestScore >= .65
+            ? RiskLevelFilter.high
+            : RiskLevelFilter.moderate;
     final noticeId = latest?['id']?.toString();
-    final showNotice = noticeLevel != null && noticeId != null &&
+    final showNotice = AppPreferences.instance.riskAlerts &&
+        noticeLevel != null &&
+        noticeId != null &&
         noticeId != data['_seen_prediction'];
     final diabetesScore = (diabetes?['risk_score'] as num?)?.toDouble();
     final heartScore = (heart?['risk_score'] as num?)?.toDouble();
@@ -193,6 +285,12 @@ class _HomeTabState extends State<_HomeTab> {
             : 'Updated ${DateFormat.yMMMd().format(updated)}';
     String number(dynamic value, {int decimals = 0}) =>
         value == null ? '—' : (value as num).toStringAsFixed(decimals);
+    final sync = VitalSync.instance;
+    final vital = sync.listening ? sync.current : null;
+    final vitalUpdated = sync.listening
+        ? sync.lastUpdated
+        : DateTime.tryParse(data['_vital_recorded_at']?.toString() ?? '')
+            ?.toLocal();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -202,12 +300,14 @@ class _HomeTabState extends State<_HomeTab> {
         title: const Text('RiskSense AI'),
         actions: [
           IconButton(
-            tooltip: showNotice ? 'New risk analysis result' : 'Prediction history',
+            tooltip:
+                showNotice ? 'New risk analysis result' : 'Prediction history',
             icon: Badge(
               isLabelVisible: showNotice,
               backgroundColor: noticeLevel == RiskLevelFilter.high
-                  ? AppColors.riskHigh : AppColors.riskMedium,
-              child: const Icon(Icons.notifications_outlined,
+                  ? AppColors.riskHigh
+                  : AppColors.riskMedium,
+              child: Icon(Icons.notifications_outlined,
                   color: AppColors.primaryBlue, size: 22),
             ),
             onPressed: () async {
@@ -220,6 +320,7 @@ class _HomeTabState extends State<_HomeTab> {
               widget.onRiskNotice(noticeLevel ?? RiskLevelFilter.all);
             },
           ),
+          const WearableSyncButton(),
           const ScreenHelpButton(topic: 'Dashboard'),
           const SizedBox(width: 8),
         ],
@@ -238,7 +339,7 @@ class _HomeTabState extends State<_HomeTab> {
                 children: [
                   TextSpan(
                     text: '${_greeting()},\n',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       color: AppColors.textSecondary,
                       fontFamily: 'DMSans',
@@ -246,7 +347,7 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
                   TextSpan(
                     text: data['patient_first_name']?.toString() ?? 'Patient',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
@@ -258,7 +359,7 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               "Here's your current health risk overview",
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
@@ -285,8 +386,8 @@ class _HomeTabState extends State<_HomeTab> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Risk Overview',
-                          style: Theme.of(context).textTheme.headlineSmall),
+                      Expanded(child: Text('Risk Overview',
+                          style: Theme.of(context).textTheme.headlineSmall)),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -296,7 +397,7 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
                         child: Text(
                           updatedLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.amber,
@@ -309,37 +410,66 @@ class _HomeTabState extends State<_HomeTab> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      GestureDetector(
+                      Expanded(child: GestureDetector(
                         onTap: diabetesScore == null
                             ? null
                             : () =>
                                 Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => PredictionResultScreen(
                                       condition: 'Diabetes',
-                                      riskScore: diabetesScore),
+                                      riskScore: diabetesScore,
+                                      predictionId: diabetes?['id']?.toString(),
+                                      riskClassification:
+                                          diabetes?['risk_classification']
+                                              ?.toString(),
+                                      interpretation:
+                                          diabetes?['interpretation']
+                                              ?.toString(),
+                                      contributingFactors: (diabetes?[
+                                                      'contributing_factors']
+                                                  as List? ??
+                                              const [])
+                                          .whereType<Map>()
+                                          .map((item) =>
+                                              Map<String, dynamic>.from(item))
+                                          .toList()),
                                 )),
                         child: RiskMeterWidget(
                             label: 'Diabetes', percent: diabetesScore ?? 0),
-                      ),
+                      )),
                       Container(width: 1, height: 80, color: AppColors.border),
-                      GestureDetector(
+                      Expanded(child: GestureDetector(
                         onTap: heartScore == null
                             ? null
                             : () =>
                                 Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => PredictionResultScreen(
                                       condition: 'Heart Disease',
-                                      riskScore: heartScore),
+                                      riskScore: heartScore,
+                                      predictionId: heart?['id']?.toString(),
+                                      riskClassification:
+                                          heart?['risk_classification']
+                                              ?.toString(),
+                                      interpretation:
+                                          heart?['interpretation']?.toString(),
+                                      contributingFactors: (heart?[
+                                                      'contributing_factors']
+                                                  as List? ??
+                                              const [])
+                                          .whereType<Map>()
+                                          .map((item) =>
+                                              Map<String, dynamic>.from(item))
+                                          .toList()),
                                 )),
                         child: RiskMeterWidget(
                             label: 'Heart Disease', percent: heartScore ?? 0),
-                      ),
+                      )),
                       Container(width: 1, height: 80, color: AppColors.border),
-                      CountMeterWidget(
+                      Expanded(child: CountMeterWidget(
                           label: 'Drug Enquiries',
                           count:
                               data['drug_response_enquiries_today'] as int? ??
-                                  0),
+                                  0)),
                     ],
                   ),
                 ],
@@ -359,8 +489,9 @@ class _HomeTabState extends State<_HomeTab> {
                     MaterialPageRoute(builder: (_) => const DataInputScreen()),
                   );
                   if (mounted) {
+                    widget.onMetricsUpdated();
                     setState(() {
-                      _dashboard = _load();
+                      _dashboard = _loadDashboard();
                     });
                   }
                 },
@@ -373,19 +504,21 @@ class _HomeTabState extends State<_HomeTab> {
                   child: OutlinedButton(
                     onPressed: () =>
                         Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => MealPlanScreen(dashboard: data),
+                      builder: (_) => NutritionScreen(dashboard: data,
+                        dataSource: widget.previewNutrition,
+                        glucoseDataSource: widget.previewGlucose),
                     )),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 11),
                       foregroundColor: AppColors.teal,
-                      side: const BorderSide(color: AppColors.teal),
+                      side: BorderSide(color: AppColors.teal, width: 2),
                     ),
                     child:
                         const Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.restaurant_menu_rounded, size: 20),
                       SizedBox(height: 5),
-                      Text('Generate Meal Plan',
+                      Text('Nutrition',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w600)),
@@ -397,7 +530,8 @@ class _HomeTabState extends State<_HomeTab> {
                   child: OutlinedButton(
                     onPressed: () =>
                         Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => FitnessRoutineScreen(dashboard: data),
+                      builder: (_) => FitnessScreen(dashboard: data,
+                        dataSource: widget.previewFitness),
                     )),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -407,7 +541,7 @@ class _HomeTabState extends State<_HomeTab> {
                         const Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.fitness_center_rounded, size: 20),
                       SizedBox(height: 5),
-                      Text('Generate Fitness Routine',
+                      Text('Fitness',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w600)),
@@ -416,9 +550,52 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => MindfulnessScreen(dataSource: widget.previewMindfulness))),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  foregroundColor: AppColors.teal,
+                  side: BorderSide(color: AppColors.teal, width: 2),
+                ),
+                icon: const Icon(Icons.spa_rounded, size: 21),
+                label: const Text('Mindfulness',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
             const SizedBox(height: 24),
 
             const SectionHeader(title: 'Quick Stats'),
+            const SizedBox(height: 6),
+            Row(children: [
+              Icon(
+                  sync.listening ? Icons.watch_rounded : Icons.schedule_rounded,
+                  size: 15,
+                  color: sync.listening
+                      ? AppColors.teal
+                      : AppColors.textSecondary),
+              const SizedBox(width: 5),
+              Expanded(
+                  child: Text(
+                sync.listening
+                    ? sync.receiving
+                        ? 'Receiving new readings'
+                        : sync.hasReceivedUpdate
+                            ? 'Synced • Last reading ${DateFormat.jm().format(sync.lastUpdated!)}'
+                            : 'Listening for incoming vitals'
+                    : vitalUpdated == null
+                        ? 'Vitals not updated yet'
+                        : 'Vitals last updated ${DateFormat.yMMMd().add_jm().format(vitalUpdated)}',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: sync.listening
+                        ? AppColors.teal
+                        : AppColors.textSecondary),
+              )),
+            ]),
             const SizedBox(height: 12),
             GridView(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -432,6 +609,7 @@ class _HomeTabState extends State<_HomeTab> {
               children: [
                 StatCard(
                   compact: true,
+                  pulse: sync.receiving,
                   title: 'BMI',
                   value: number(data['bmi'], decimals: 1),
                   icon: Icons.monitor_weight_outlined,
@@ -440,15 +618,17 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
                 StatCard(
                   compact: true,
+                  pulse: sync.receiving,
                   title: 'Blood Pressure',
                   value:
-                      '${number(data['latest_systolic_bp'])}/${number(data['latest_diastolic_bp'])}',
+                      '${number(vital?['blood_pressure_systolic'] ?? data['latest_systolic_bp'])}/${number(vital?['blood_pressure_diastolic'] ?? data['latest_diastolic_bp'])}',
                   icon: Icons.favorite_border_rounded,
                   color: AppColors.danger,
                   subtitle: 'Latest recorded BP',
                 ),
                 StatCard(
                   compact: true,
+                  pulse: sync.receiving,
                   title: 'Glucose',
                   value:
                       '${number(data['latest_glucose'], decimals: 1)} ${data['latest_glucose_unit'] ?? ''}'
@@ -459,12 +639,39 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
                 StatCard(
                   compact: true,
+                  pulse: sync.receiving,
                   title: 'Predictions',
                   value: '${data['prediction_count'] ?? 0}',
                   icon: Icons.history_rounded,
                   color: AppColors.success,
                   subtitle: 'This month',
                 ),
+                if (sync.listening) ...[
+                  StatCard(
+                      compact: true,
+                      pulse: sync.receiving,
+                      title: 'Heart Rate',
+                      value: number(vital?['heart_rate']),
+                      icon: Icons.monitor_heart_rounded,
+                      color: AppColors.teal,
+                      subtitle: 'bpm • Latest received'),
+                  StatCard(
+                      compact: true,
+                      pulse: sync.receiving,
+                      title: 'Oxygen Saturation',
+                      value: number(vital?['oxygen_saturation']),
+                      icon: Icons.air_rounded,
+                      color: AppColors.primaryBlue,
+                      subtitle: '% • Latest received'),
+                  StatCard(
+                      compact: true,
+                      pulse: sync.receiving,
+                      title: 'Temperature',
+                      value: number(vital?['temperature'], decimals: 1),
+                      icon: Icons.thermostat_rounded,
+                      color: AppColors.amber,
+                      subtitle: '°C • Latest received'),
+                ],
               ],
             ),
             const SizedBox(height: 30),
@@ -483,7 +690,9 @@ class _SessionExpiryBadge extends StatelessWidget {
   const _SessionExpiryBadge();
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<DateTime>(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return StreamBuilder<DateTime>(
         stream: Stream<DateTime>.periodic(
             const Duration(seconds: 30), (_) => DateTime.now()),
         initialData: DateTime.now(),
@@ -503,12 +712,12 @@ class _SessionExpiryBadge extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
-              const Icon(Icons.timer_outlined,
+              Icon(Icons.timer_outlined,
                   size: 16, color: AppColors.primaryBlue),
               const SizedBox(width: 8),
               Expanded(
                   child: Text(label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         color: AppColors.primaryBlue,
                         fontWeight: FontWeight.w500,
@@ -517,6 +726,7 @@ class _SessionExpiryBadge extends StatelessWidget {
           );
         },
       );
+  }
 }
 
 // ─── Health Tab ───────────────────────────────────────────────────────────────
@@ -592,6 +802,7 @@ class _HealthTabState extends State<_HealthTab> {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const MedAppBar(
@@ -614,7 +825,7 @@ class _HealthTabState extends State<_HealthTab> {
                     Text(
                       snapshot.error.toString(),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
@@ -709,6 +920,7 @@ class _TrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -723,7 +935,7 @@ class _TrendCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -746,7 +958,7 @@ class _TrendCard extends StatelessWidget {
           SizedBox(
             height: 120,
             child: spots.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No readings recorded in the last 7 days',
                       style: TextStyle(
@@ -765,8 +977,8 @@ class _TrendCard extends StatelessWidget {
                         show: true,
                         drawVerticalLine: false,
                         horizontalInterval: (maxY - minY) / 4,
-                        getDrawingHorizontalLine: (v) => const FlLine(
-                            color: AppColors.border, strokeWidth: 1),
+                        getDrawingHorizontalLine: (v) =>
+                            FlLine(color: AppColors.border, strokeWidth: 1),
                       ),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
@@ -776,7 +988,7 @@ class _TrendCard extends StatelessWidget {
                             interval: (maxY - minY) / 2,
                             getTitlesWidget: (v, _) => Text(
                               v.toInt().toString(),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 10, color: AppColors.textLight),
                             ),
                           ),
@@ -792,7 +1004,7 @@ class _TrendCard extends StatelessWidget {
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(dayLabels[i],
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 9,
                                           color: AppColors.textLight)),
                                 );

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -27,6 +28,7 @@ class ApiClient {
   String? _accessToken;
   String? _refreshToken;
   String? _role;
+  Future<void>? _restoreFuture;
   String? get role => _role;
   DateTime? get accessTokenExpiresAt {
     final token = _accessToken;
@@ -47,7 +49,9 @@ class ApiClient {
 
   bool get hasStoredSession => _accessToken != null && _refreshToken != null;
 
-  Future<void> restore() async {
+  Future<void> restore() => _restoreFuture ??= _readStoredSession();
+
+  Future<void> _readStoredSession() async {
     _accessToken ??= await _storage.read(key: _accessKey);
     _refreshToken ??= await _storage.read(key: _refreshKey);
     _role ??= await _storage.read(key: _roleKey);
@@ -93,6 +97,51 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> resendRegistrationCode(String email) async {
+    try {
+      return Map<String, dynamic>.from((await _dio
+              .post('/auth/register/resend', data: {'email': email.trim()}))
+          .data);
+    } on DioException catch (error) {
+      throw ApiException(_message(error),
+          statusCode: error.response?.statusCode);
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyRegistrationCode(
+      String email, String code) async {
+    try {
+      return Map<String, dynamic>.from((await _dio.post('/auth/register/verify',
+              data: {'email': email.trim(), 'code': code}))
+          .data);
+    } on DioException catch (error) {
+      throw ApiException(_message(error),
+          statusCode: error.response?.statusCode);
+    }
+  }
+
+  Future<Map<String, dynamic>> requestPasswordRecovery(String email) async {
+    try {
+      return Map<String, dynamic>.from((await _dio.post(
+              '/auth/password-recovery/start',
+              data: {'email': email.trim()}))
+          .data);
+    } on DioException catch (error) {
+      throw ApiException(_message(error),
+          statusCode: error.response?.statusCode);
+    }
+  }
+
+  Future<void> completePasswordRecovery(String email, String code) async {
+    try {
+      await _dio.post('/auth/password-recovery/complete',
+          data: {'email': email.trim(), 'code': code});
+    } on DioException catch (error) {
+      throw ApiException(_message(error),
+          statusCode: error.response?.statusCode);
+    }
+  }
+
   Future<void> logout() async {
     final refresh = _refreshToken;
     try {
@@ -110,6 +159,9 @@ class ApiClient {
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _request('GET', path, query: query);
+  Future<Uint8List> getBytes(String path) async => Uint8List.fromList(
+      (await _request('GET', path, responseType: ResponseType.bytes) as List)
+          .cast<int>());
   Future<dynamic> post(String path, {Object? data}) =>
       _request('POST', path, data: data);
   Future<dynamic> patch(String path, {Object? data}) =>
@@ -122,11 +174,42 @@ class ApiClient {
     final response = Map<String, dynamic>.from(
         await post('/api/v1/access/activation-session') as Map);
     final uri = Uri.tryParse(response['activation_url']?.toString() ?? '');
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty ||
+    if (uri == null ||
+        !uri.hasScheme ||
+        uri.host.isEmpty ||
         (uri.scheme != 'https' &&
             !(uri.scheme == 'http' &&
                 (uri.host == 'localhost' || uri.host == '127.0.0.1')))) {
-      throw ApiException('The activation URL returned by the backend is invalid.');
+      throw ApiException(
+          'The activation URL returned by the backend is invalid.');
+    }
+    return _websiteUriForDevice(uri);
+  }
+
+  Future<Uri> issueSubscriptionRenewalUrl() async {
+    final response = Map<String, dynamic>.from(
+        await post('/api/v1/access/subscription-renewal-session') as Map);
+    final uri = Uri.tryParse(response['activation_url']?.toString() ?? '');
+    if (uri == null ||
+        uri.path != '/profile' ||
+        !uri.hasScheme ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'https' &&
+            !(uri.scheme == 'http' &&
+                (uri.host == 'localhost' || uri.host == '127.0.0.1')))) {
+      throw ApiException('The renewal URL returned by the backend is invalid.');
+    }
+    return _websiteUriForDevice(uri);
+  }
+
+  Uri _websiteUriForDevice(Uri uri) {
+    // The Android emulator reaches services on the development machine through
+    // 10.0.2.2. Its own localhost cannot reach the Windows website server.
+    final apiHost = Uri.tryParse(_dio.options.baseUrl)?.host;
+    if (apiHost == '10.0.2.2' &&
+        uri.scheme == 'http' &&
+        (uri.host == 'localhost' || uri.host == '127.0.0.1')) {
+      return uri.replace(host: '10.0.2.2');
     }
     return uri;
   }
@@ -135,17 +218,21 @@ class ApiClient {
       Map<String, dynamic>.from(await get('/api/v1/access/status') as Map);
 
   Future<dynamic> _request(String method, String path,
-      {Object? data, Map<String, dynamic>? query, bool retry = true}) async {
+      {Object? data,
+      Map<String, dynamic>? query,
+      ResponseType? responseType,
+      bool retry = true}) async {
     await restore();
     try {
       return (await _dio.request(path,
               data: data,
               queryParameters: query,
-              options: _authorized(method: method)))
+              options: _authorized(method: method, responseType: responseType)))
           .data;
     } on DioException catch (error) {
       if (error.response?.statusCode == 401 && retry && await _refresh()) {
-        return _request(method, path, data: data, query: query, retry: false);
+        return _request(method, path,
+            data: data, query: query, responseType: responseType, retry: false);
       }
       throw ApiException(_message(error),
           statusCode: error.response?.statusCode);
@@ -168,8 +255,9 @@ class ApiClient {
     }
   }
 
-  Options _authorized({String? method}) => Options(
+  Options _authorized({String? method, ResponseType? responseType}) => Options(
       method: method,
+      responseType: responseType,
       headers: _accessToken == null
           ? null
           : {'Authorization': 'Bearer $_accessToken'});
@@ -190,10 +278,13 @@ class ApiClient {
       final detail = data['detail'];
       if (detail is Map) {
         final message = detail['message']?.toString();
-        final fields = detail['fields'] ?? detail['missing_fields'] ?? detail['invalid_fields'];
+        final fields = detail['fields'] ??
+            detail['missing_fields'] ??
+            detail['invalid_fields'];
         if (message != null) {
           return fields is List && fields.isNotEmpty
-              ? '$message Required fields: ${fields.join(', ')}.' : message;
+              ? '$message Required fields: ${fields.join(', ')}.'
+              : message;
         }
       }
       return detail.toString();
