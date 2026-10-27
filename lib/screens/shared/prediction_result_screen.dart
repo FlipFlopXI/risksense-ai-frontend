@@ -4,6 +4,8 @@ import 'package:percent_indicator/percent_indicator.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
 import 'package:medguide/services/clinician_pdf.dart';
+import 'package:medguide/services/risk_report_pdf.dart';
+import 'package:medguide/services/api_client.dart';
 
 class PredictionResultScreen extends StatefulWidget {
   final String condition;
@@ -12,6 +14,8 @@ class PredictionResultScreen extends StatefulWidget {
   final String? interpretation;
   final List<Map<String, dynamic>> contributingFactors;
   final bool clinicianMode;
+  final String? predictionId;
+  final Future<void> Function(BuildContext, String)? reportOpener;
 
   const PredictionResultScreen({
     super.key,
@@ -21,6 +25,8 @@ class PredictionResultScreen extends StatefulWidget {
     this.interpretation,
     this.contributingFactors = const [],
     this.clinicianMode = false,
+    this.predictionId,
+    this.reportOpener,
   });
 
   @override
@@ -30,6 +36,7 @@ class PredictionResultScreen extends StatefulWidget {
 class _PredictionResultScreenState extends State<PredictionResultScreen>
     with SingleTickerProviderStateMixin {
   bool _isAnalyzing = true;
+  bool _exporting = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
 
@@ -72,6 +79,48 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
     'fasting_blood_sugar_high': 'Fasting glucose category',
   };
 
+  Future<void> _exportReport() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      if (widget.clinicianMode) {
+        await ClinicianPdf.export(
+          context,
+          title: '${widget.condition} demonstration assessment',
+          lines: [
+            'Estimated model score: ${(widget.riskScore * 100).toStringAsFixed(1)}%',
+            'Classification: ${widget.riskClassification ?? 'Unavailable'}',
+            widget.interpretation ?? 'No interpretation available.',
+            ...widget.contributingFactors.map((factor) =>
+                '${factor['feature']}: ${factor['direction']} score'),
+            'This assessment was not saved to a patient record.',
+          ],
+        );
+      } else {
+        final id = widget.predictionId;
+        if (id == null || id.isEmpty) return;
+        await (widget.reportOpener ?? RiskReportPdf.open)(context, id);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      await showDialog<void>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+                title: const Text('PDF Unavailable'),
+                content: Text(error is ApiException
+                    ? error.message
+                    : 'The report could not be opened. Please try again.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialog),
+                      child: const Text('Dismiss')),
+                ],
+              ));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Widget _factorBar(Map<String, dynamic> factor) {
     final feature = factor['feature']?.toString() ?? '';
     final direction = factor['direction']?.toString() ?? 'neutral';
@@ -95,13 +144,14 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.cardWhite,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
               size: 18, color: AppColors.primaryBlue),
           onPressed: () => Navigator.pop(context),
         ),
@@ -139,7 +189,7 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
                     color: AppColors.primaryBlue.withValues(alpha: 0.3),
                     width: 2),
               ),
-              child: const Icon(Icons.shield_outlined,
+              child: Icon(Icons.shield_outlined,
                   size: 44, color: AppColors.primaryBlue),
             ),
           ),
@@ -147,10 +197,10 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
           Text('Analyzing Clinical Profile…',
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
-          const Text('Processing your health data securely',
+          Text('Processing your health data securely',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
           const SizedBox(height: 32),
-          const SizedBox(
+          SizedBox(
             width: 180,
             child: LinearProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
@@ -203,7 +253,7 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
                           color: _riskColor,
                         ),
                       ),
-                      const Text('Risk Score',
+                      Text('Risk Score',
                           style: TextStyle(
                               fontSize: 11, color: AppColors.textSecondary)),
                     ],
@@ -235,7 +285,7 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.bar_chart_rounded,
+                    Icon(Icons.bar_chart_rounded,
                         size: 18, color: AppColors.primaryBlue),
                     const SizedBox(width: 8),
                     Text('Primary Contributing Factors',
@@ -244,11 +294,11 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
                 ),
                 const SizedBox(height: 16),
                 if (widget.contributingFactors.isEmpty)
-                  const Text(
+                  Text(
                       'Feature contributions are unavailable for this analysis.',
                       style: TextStyle(color: AppColors.textSecondary))
                 else ...[
-                  const Text(
+                  Text(
                       'Relative contributions to this model score, not clinical effects.',
                       style: TextStyle(
                           fontSize: 12, color: AppColors.textSecondary)),
@@ -274,7 +324,7 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.psychology_outlined,
+                    Icon(Icons.psychology_outlined,
                         size: 18, color: AppColors.primaryBlue),
                     const SizedBox(width: 8),
                     Text('AI Interpretation',
@@ -285,7 +335,7 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
                 Text(
                   widget.interpretation ??
                       'This analysis does not include a feature-level interpretation.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                     height: 1.6,
@@ -304,20 +354,14 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
             height: 50,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-              label: const Text('Generate PDF Report'),
-              onPressed: widget.clinicianMode ? () => ClinicianPdf.export(context,
-                title: '${widget.condition} demonstration assessment',
-                lines: [
-                  'Estimated model score: ${(widget.riskScore * 100).toStringAsFixed(1)}%',
-                  'Classification: ${widget.riskClassification ?? 'Unavailable'}',
-                  widget.interpretation ?? 'No interpretation available.',
-                  ...widget.contributingFactors.map((factor) =>
-                      '${factor['feature']}: ${factor['direction']} score'),
-                  'This assessment was not saved to a patient record.',
-                ],
-              ) : () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Use the saved prediction report from your history.')),
-              ),
+              label:
+                  Text(_exporting ? 'Preparing PDF...' : 'Generate PDF Report'),
+              onPressed: _exporting ||
+                      (!widget.clinicianMode &&
+                          (widget.predictionId == null ||
+                              widget.predictionId!.isEmpty))
+                  ? null
+                  : _exportReport,
             ),
           ),
           const SizedBox(height: 20),

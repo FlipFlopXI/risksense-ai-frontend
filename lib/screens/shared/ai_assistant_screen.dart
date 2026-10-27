@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:medguide/widgets/screen_help.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/services/app_preferences.dart';
+import 'package:medguide/screens/shared/medication_commands.dart';
+import 'package:medguide/screens/shared/health_trend_commands.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
@@ -13,10 +16,14 @@ class AiAssistantScreen extends StatefulWidget {
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final MedicationCommands _medicationCommands =
+      const MedicationCommands(ApiMedicationStore());
+  final HealthTrendCommands _healthTrendCommands = HealthTrendCommands(
+      const ApiHealthTrendSource(), now: DateTime.now);
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
       text:
-          "Hello, I'm your RiskSense AI Assistant. I can help you understand your health risk scores and provide educational information. Please note I cannot provide medical diagnosis.",
+          'Hello, I’m your RiskSense AI Assistant. Ask about a named medication for reviewed educational information, or ask me to "show my health trends" for a summary of your recorded measurements. To save a medication, use this format: add medication name + routine + dosage. For example, type "add medication metformin + every morning + 500 mg". Put a + between the medication name, routine, and dosage. The routine and dosage are optional: "add medication metformin" also works. Type "view medication" to see your list, or "remove medication + metformin" to remove one. I cannot diagnose or prescribe.',
       isUser: false,
     ),
   ];
@@ -35,6 +42,40 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     _scrollToBottom();
 
     try {
+      if (RegExp(r'^(add|view|remove) medication', caseSensitive: false)
+              .hasMatch(text) &&
+          ApiClient.instance.role?.toUpperCase() != 'PATIENT') {
+        if (!mounted) return;
+        setState(() {
+          _isTyping = false;
+          _messages.add(const _ChatMessage(
+              text: 'Medication list commands are available to patient accounts only.',
+              isUser: false));
+        });
+        return;
+      }
+      final medicationReply = await _medicationCommands.handle(text);
+      if (medicationReply != null) {
+        if (!mounted) return;
+        setState(() {
+          _isTyping = false;
+          _messages.add(_ChatMessage(text: medicationReply, isUser: false));
+        });
+        _scrollToBottom();
+        return;
+      }
+      final trendReply = ApiClient.instance.role?.toUpperCase() == 'PATIENT'
+          ? await _healthTrendCommands.handle(text)
+          : null;
+      if (trendReply != null) {
+        if (!mounted) return;
+        setState(() {
+          _isTyping = false;
+          _messages.add(_ChatMessage(text: trendReply, isUser: false));
+        });
+        _scrollToBottom();
+        return;
+      }
       final body = <String, dynamic>{'message': text};
       if (_sessionId != null) body['session_id'] = _sessionId;
       final response = Map<String, dynamic>.from(
@@ -100,220 +141,233 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardWhite,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.primaryBlue,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.psychology_rounded,
-                  color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'RiskSense AI Assistant',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Row(
+    Theme.of(context);
+    return AnimatedBuilder(
+        animation: AppPreferences.instance,
+        builder: (context, _) => Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: AppBar(
+                backgroundColor: AppColors.cardWhite,
+                elevation: 0,
+                automaticallyImplyLeading: false,
+                title: Row(
                   children: [
                     Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue,
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: const Icon(Icons.psychology_rounded,
+                          color: Colors.white, size: 20),
                     ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Educational Support Only',
-                      style: TextStyle(
-                          fontSize: 10, color: AppColors.textSecondary),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'RiskSense AI Assistant',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: AppColors.success,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Educational Support Only',
+                              style: TextStyle(
+                                  fontSize: 10, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ],
-        ),
-        actions: const [
-          ScreenHelpButton(topic: 'Assistant'),
-          SizedBox(width: 8),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: AppColors.border, height: 1),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Disclaimer bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: AppColors.amber.withValues(alpha: 0.08),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline_rounded,
-                    size: 14, color: AppColors.amber),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'This assistant provides educational support only. It cannot diagnose conditions.',
-                    style:
-                        TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                  ),
+                actions: const [
+                  ScreenHelpButton(topic: 'Assistant'),
+                  SizedBox(width: 8),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(1),
+                  child: Container(color: AppColors.border, height: 1),
                 ),
-              ],
-            ),
-          ),
-
-          // Suggested prompts (only on first load)
-          if (_messages.length == 1)
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              body: Column(
                 children: [
-                  const Text(
-                    'Suggested Questions',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                  // Disclaimer bar
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: AppColors.amber.withValues(alpha: 0.08),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 14, color: AppColors.amber),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'This assistant provides educational support only. It cannot diagnose conditions.',
+                            style: TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      'Explain my risk',
-                      'How can I reduce my risk?',
-                      'What does my glucose mean?',
-                      'Am I diabetic?',
-                    ]
-                        .map(
-                          (q) => GestureDetector(
-                            onTap: () {
-                              _controller.text = q;
-                              _sendMessage();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceBlue,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: AppColors.primaryBlue
-                                        .withValues(alpha: 0.2)),
-                              ),
-                              child: Text(
-                                q,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.primaryBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+
+                  // Suggested prompts (only on first load)
+                  if (_messages.length == 1)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Suggested Questions',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                        )
-                        .toList(),
-                  ),
-                ],
-              ),
-            ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              'What are the side effects of metformin?',
+                              'Can I take metformin while pregnant?',
+                              'Show my health trends',
+                              'Show my blood pressure trend',
+                              'Add medication…',
+                              'View medication',
+                              'Remove medication…',
+                            ]
+                                .map(
+                                  (q) => GestureDetector(
+                                    onTap: () {
+                                      _controller.text = switch (q) {
+                                        'Add medication…' => 'add medication ',
+                                        'Remove medication…' => 'remove medication ',
+                                        _ => q,
+                                      };
+                                      if (!q.endsWith('…')) _sendMessage();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceBlue,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                            color: AppColors.primaryBlue
+                                                .withValues(alpha: 0.2)),
+                                      ),
+                                      child: Text(
+                                        q,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.primaryBlue,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
 
-          // Messages list
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (_isTyping && index == _messages.length) {
-                  return const _TypingIndicator();
-                }
-                return _MessageBubble(message: _messages[index]);
-              },
-            ),
-          ),
-
-          // Input area
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-            decoration: const BoxDecoration(
-              color: AppColors.cardWhite,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
+                  // Messages list
                   Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
-                        hintText: 'Ask about your health data...',
-                        filled: true,
-                        fillColor: AppColors.background,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(
-                              color: AppColors.primaryBlue, width: 1.5),
-                        ),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length + (_isTyping ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (_isTyping && index == _messages.length) {
+                          return const _TypingIndicator();
+                        }
+                        return _MessageBubble(message: _messages[index]);
+                      },
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      width: 46,
-                      height: 46,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryBlue,
-                        shape: BoxShape.circle,
+
+                  // Input area
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardWhite,
+                      border: Border(top: BorderSide(color: AppColors.border)),
+                    ),
+                    child: SafeArea(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              decoration: InputDecoration(
+                                hintText: 'Ask about your health data...',
+                                filled: true,
+                                fillColor: AppColors.background,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide:
+                                      BorderSide(color: AppColors.border),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide:
+                                      BorderSide(color: AppColors.border),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide(
+                                      color: AppColors.primaryBlue, width: 1.5),
+                                ),
+                              ),
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: _sendMessage,
+                            child: Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryBlue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.send_rounded,
+                                  color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.send_rounded,
-                          color: Colors.white, size: 20),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-    );
+            ));
   }
 }
 
@@ -336,6 +390,7 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -396,7 +451,7 @@ class _MessageBubble extends StatelessWidget {
             ),
             if (message.sources.isNotEmpty) ...[
               const SizedBox(height: 12),
-              const Text('Sources',
+              Text('Sources',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -405,7 +460,7 @@ class _MessageBubble extends StatelessWidget {
               ...message.sources.map((url) => Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: SelectableText(url,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           color: AppColors.primaryBlue,
                         )),
@@ -446,6 +501,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(

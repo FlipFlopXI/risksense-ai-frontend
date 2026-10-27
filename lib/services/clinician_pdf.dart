@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:medguide/widgets/pdf_report_preview.dart';
 
 /// Exports only the data explicitly supplied by the current authorized screen.
 class ClinicianPdf {
-  static Future<void> export(BuildContext context, {
+  static Future<void> export(
+    BuildContext context, {
     required String title,
     required List<String> lines,
   }) async {
@@ -20,9 +21,11 @@ class ClinicianPdf {
           'Check the recipient and use a secure location before continuing.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Continue to PDF')),
         ],
       ),
@@ -32,17 +35,22 @@ class ClinicianPdf {
     document.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       build: (_) => [
-        pw.Text(title, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+        pw.Text(title,
+            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 14),
         ...lines.map((line) => pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 7),
-          child: pw.Text(line, style: const pw.TextStyle(fontSize: 11)),
-        )),
+              padding: const pw.EdgeInsets.only(bottom: 7),
+              child: pw.Text(line, style: const pw.TextStyle(fontSize: 11)),
+            )),
         pw.SizedBox(height: 16),
-        pw.Text('RiskSense AI provides decision support, not a diagnosis or treatment recommendation.',
+        pw.Text(
+            'RiskSense AI provides decision support, not a diagnosis or treatment recommendation.',
             style: const pw.TextStyle(fontSize: 9)),
       ],
     ));
-    await Printing.layoutPdf(onLayout: (_) async => document.save());
+    final bytes = await document.save();
+    if (!context.mounted) return;
+    await PdfReportPreview.open(context,
+        title: title, filename: 'risksense-clinical-report.pdf', bytes: bytes);
   }
 }

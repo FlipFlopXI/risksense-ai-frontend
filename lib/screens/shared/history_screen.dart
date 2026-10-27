@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:medguide/screens/shared/prediction_result_screen.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/services/risk_report_pdf.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
 
@@ -14,7 +15,14 @@ enum _Order { latest, oldest }
 
 class HistoryScreen extends StatefulWidget {
   final RiskLevelFilter initialLevel;
-  const HistoryScreen({super.key, this.initialLevel = RiskLevelFilter.all});
+  final Future<List<Map<String, dynamic>>> Function()? predictionsLoader;
+  final Future<void> Function(BuildContext, String)? reportOpener;
+  const HistoryScreen({
+    super.key,
+    this.initialLevel = RiskLevelFilter.all,
+    this.predictionsLoader,
+    this.reportOpener,
+  });
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
@@ -24,6 +32,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
   _RiskType _type = _RiskType.all;
   late RiskLevelFilter _level;
   _Order _order = _Order.latest;
+  String? _openingReportId;
+
+  Future<void> _openReport(String predictionId) async {
+    if (_openingReportId != null) return;
+    setState(() => _openingReportId = predictionId);
+    try {
+      await (widget.reportOpener ?? RiskReportPdf.open)(context, predictionId);
+    } catch (error) {
+      if (!mounted) return;
+      await showDialog<void>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+                title: const Text('PDF Unavailable'),
+                content: Text(error is ApiException
+                    ? error.message
+                    : 'The report could not be opened. Please try again.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialog),
+                      child: const Text('Dismiss')),
+                ],
+              ));
+    } finally {
+      if (mounted) setState(() => _openingReportId = null);
+    }
+  }
 
   @override
   void initState() {
@@ -33,6 +67,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
+    if (widget.predictionsLoader != null) {
+      final values = await widget.predictionsLoader!();
+      values.sort((a, b) => _date(b).compareTo(_date(a)));
+      return values;
+    }
     final raw =
         await ApiClient.instance.get('/predictions', query: {'limit': 100});
     final values = (raw as List)
@@ -70,11 +109,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     };
     final levelMatches = switch (_level) {
       RiskLevelFilter.all => true,
-      RiskLevelFilter.low => score != null ? score < .35 : classification.contains('low'),
+      RiskLevelFilter.low =>
+        score != null ? score < .35 : classification.contains('low'),
       RiskLevelFilter.moderate => score != null
           ? score >= .35 && score < .65
-          : classification.contains('moderate') || classification.contains('medium'),
-      RiskLevelFilter.high => score != null ? score >= .65 : classification.contains('high'),
+          : classification.contains('moderate') ||
+              classification.contains('medium'),
+      RiskLevelFilter.high =>
+        score != null ? score >= .65 : classification.contains('high'),
     };
     return typeMatches && levelMatches;
   }
@@ -219,7 +261,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return Scaffold(
         backgroundColor: AppColors.background,
         appBar: const MedAppBar(
             title: 'Prediction History', showSecureBadge: false),
@@ -266,8 +310,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   else
                     ...shown.map((prediction) {
                       final score = _score(prediction);
-                      final level = score == null ? _levelLabel(prediction) :
-                          score < .35 ? 'Low Risk' : score < .65 ? 'Moderate Risk' : 'High Risk';
+                      final level = score == null
+                          ? _levelLabel(prediction)
+                          : score < .35
+                              ? 'Low Risk'
+                              : score < .65
+                                  ? 'Moderate Risk'
+                                  : 'High Risk';
                       return _HistoryCard(
                         condition: _condition(prediction),
                         date: DateFormat('MMM d, yyyy • HH:mm')
@@ -275,6 +324,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         score: score,
                         level: level,
                         color: _color(level),
+                        reportBusy:
+                            _openingReportId == prediction['id']?.toString(),
+                        onReport: prediction['id'] == null ||
+                                _openingReportId != null
+                            ? null
+                            : () => _openReport(prediction['id'].toString()),
                         onTap: score == null
                             ? null
                             : () => Navigator.push(
@@ -284,6 +339,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       condition: _condition(prediction)
                                           .replaceAll(' Risk', ''),
                                       riskScore: score,
+                                      predictionId:
+                                          prediction['id']?.toString(),
+                                      reportOpener: widget.reportOpener,
+                                      riskClassification:
+                                          prediction['risk_classification']
+                                              ?.toString(),
+                                      interpretation:
+                                          prediction['interpretation']
+                                              ?.toString(),
+                                      contributingFactors: (prediction[
+                                                      'contributing_factors']
+                                                  as List? ??
+                                              const [])
+                                          .whereType<Map>()
+                                          .map((item) =>
+                                              Map<String, dynamic>.from(item))
+                                          .toList(),
                                     ),
                                   ),
                                 ),
@@ -295,6 +367,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           },
         ),
       );
+  }
 }
 
 class _RiskTrendCard extends StatelessWidget {
@@ -303,6 +376,7 @@ class _RiskTrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Theme.of(context);
     final target = predictions.isEmpty
         ? ''
         : predictions.first['prediction_target']?.toString().toLowerCase() ??
@@ -344,7 +418,7 @@ class _RiskTrendCard extends StatelessWidget {
           values.isEmpty
               ? 'No prediction history available'
               : 'Latest ${values.length} ${values.length == 1 ? 'prediction' : 'predictions'}',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -371,7 +445,7 @@ class _RiskTrendCard extends StatelessWidget {
                         reservedSize: 32,
                         interval: 25,
                         getTitlesWidget: (value, _) => Text('${value.toInt()}%',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 9, color: AppColors.textLight)),
                       ),
                     ),
@@ -387,7 +461,7 @@ class _RiskTrendCard extends StatelessWidget {
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(labels[i],
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 8, color: AppColors.textLight)),
                           );
                         },
@@ -432,6 +506,8 @@ class _HistoryCard extends StatelessWidget {
   final String level;
   final Color color;
   final VoidCallback? onTap;
+  final VoidCallback? onReport;
+  final bool reportBusy;
   const _HistoryCard({
     required this.condition,
     required this.date,
@@ -439,10 +515,14 @@ class _HistoryCard extends StatelessWidget {
     required this.level,
     required this.color,
     required this.onTap,
+    required this.onReport,
+    required this.reportBusy,
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    return GestureDetector(
         onTap: onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -474,13 +554,13 @@ class _HistoryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(condition,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary)),
                     const SizedBox(height: 2),
                     Text(date,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12, color: AppColors.textSecondary)),
                   ]),
             ),
@@ -501,9 +581,18 @@ class _HistoryCard extends StatelessWidget {
               ),
             ]),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textLight, size: 20),
+            IconButton(
+              tooltip: 'Open PDF report',
+              onPressed: onReport,
+              icon: reportBusy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_outlined),
+            ),
           ]),
         ),
       );
+  }
 }
