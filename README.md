@@ -1,4 +1,4 @@
-# medguide
+# RiskSense AI Frontend
 
 Patient website activation and mobile handoff are documented in [WEB_ACTIVATION_INTEGRATION.md](WEB_ACTIVATION_INTEGRATION.md).
 
