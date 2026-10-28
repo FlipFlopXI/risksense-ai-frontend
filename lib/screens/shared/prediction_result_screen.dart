@@ -12,6 +12,7 @@ class PredictionResultScreen extends StatefulWidget {
   final double riskScore;
   final String? riskClassification;
   final String? interpretation;
+  final String? evidenceNote;
   final List<Map<String, dynamic>> contributingFactors;
   final bool clinicianMode;
   final String? predictionId;
@@ -23,6 +24,7 @@ class PredictionResultScreen extends StatefulWidget {
     required this.riskScore,
     this.riskClassification,
     this.interpretation,
+    this.evidenceNote,
     this.contributingFactors = const [],
     this.clinicianMode = false,
     this.predictionId,
@@ -271,6 +273,23 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
             ),
           ),
           const SizedBox(height: 20),
+
+          if (widget.evidenceNote != null &&
+              widget.evidenceNote!.contains('additional uncertainty')) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withValues(alpha: .11),
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: AppColors.amber.withValues(alpha: .4)),
+              ),
+              child: Text(widget.evidenceNote!,
+                  style: TextStyle(color: AppColors.textPrimary, height: 1.4)),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Contributing factors
           Container(

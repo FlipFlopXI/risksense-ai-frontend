@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -103,163 +104,170 @@ class _GlucoseTabState extends State<GlucoseTab> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return FutureBuilder<Map<String, dynamic>>(
-      future: summary,
-      builder: (_, snapshot) {
-        if (!snapshot.hasData) {
-          if (snapshot.hasError) {
-            return Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Unable to load your blood glucose log.'),
-              TextButton(onPressed: refresh, child: const Text('Retry'))
-            ]));
+        future: summary,
+        builder: (_, snapshot) {
+          if (!snapshot.hasData) {
+            if (snapshot.hasError) {
+              return Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('Unable to load your blood glucose log.'),
+                TextButton(onPressed: refresh, child: const Text('Retry'))
+              ]));
+            }
+            return const Center(child: CircularProgressIndicator());
           }
-          return const Center(child: CircularProgressIndicator());
-        }
-        final entries = (snapshot.data!['entries'] as List? ?? const [])
-            .whereType<Map>()
-            .toList();
-        final today =
-            entries.where((item) => item['log_date'] == widget.day).toList();
-        final glucose =
-            today.where((item) => item['category'] != 'insulin_dose').toList();
-        final doses =
-            today.where((item) => item['category'] == 'insulin_dose').toList();
-        final doseTotal = doses.fold<double>(
-            0, (sum, item) => sum + (readValue(item['value']) ?? 0));
-        return RefreshIndicator(
-            onRefresh: () async {
-              await refresh();
-            },
-            child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                children: [
-                  card(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.bloodtype_rounded,
-                              color: AppColors.danger),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: Text('Today’s Blood Glucose',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall))
-                        ]),
-                        const SizedBox(height: 5),
-                        Text(
-                            'Most recent patient-entered reading for each type.',
-                            style: TextStyle(color: AppColors.textSecondary)),
-                        const SizedBox(height: 15),
-                        Row(children: [
-                          snapshotTile('Fasting', glucose, 'fasting',
-                              Icons.wb_twilight_rounded, AppColors.primaryBlue),
-                          snapshotTile('Post-meal', glucose, 'post_meal',
-                              Icons.restaurant_rounded, AppColors.amber),
-                          snapshotTile('General', glucose, 'general',
-                              Icons.bloodtype_outlined, AppColors.teal),
-                        ]),
-                        const SizedBox(height: 13),
-                        Center(
-                            child: FilledButton.icon(
-                                onPressed: () => add('fasting'),
-                                icon: const Icon(Icons.add_rounded),
-                                label: const Text('Add Glucose Reading'))),
-                      ])),
-                  const SizedBox(height: 16),
-                  card(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.vaccines_rounded,
-                              color: AppColors.primaryBlue),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: Text('Insulin Doses',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall))
-                        ]),
-                        const SizedBox(height: 8),
-                        Text(
-                            doses.isEmpty
-                                ? 'No doses logged today'
-                                : '${doseTotal.toStringAsFixed(doseTotal.truncateToDouble() == doseTotal ? 0 : 2)} U logged today',
-                            style: TextStyle(
-                                fontSize: 23,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary)),
-                        Text(
-                            'Entries record doses taken, not blood insulin levels.',
-                            style: TextStyle(color: AppColors.textSecondary)),
-                        const SizedBox(height: 10),
-                        FilledButton.tonalIcon(
-                            onPressed: () => add('insulin_dose'),
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Log Insulin Dose')),
-                      ])),
-                  const SizedBox(height: 16),
-                  card(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Today’s Entries',
-                            style: Theme.of(context).textTheme.headlineSmall),
-                        const SizedBox(height: 5),
-                        Text(
-                            'Patient-entered readings and doses are saved with timestamps.',
-                            style: TextStyle(color: AppColors.textSecondary)),
-                        if (today.isEmpty)
-                          Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Text('No readings or doses logged today.',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary))),
-                        for (final item in today)
-                          ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(
-                                  item['category'] == 'insulin_dose'
-                                      ? Icons.vaccines_rounded
-                                      : Icons.bloodtype_outlined,
-                                  color: item['category'] == 'insulin_dose'
-                                      ? AppColors.primaryBlue
-                                      : AppColors.danger),
-                              title: Text(label('${item['category']}')),
-                              subtitle:
-                                  Text('${item['value']} ${item['unit']}'),
-                              trailing: Text(time(item['created_at']),
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary))),
-                      ])),
-                  const SizedBox(height: 16),
-                  card(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Past 7 Days',
-                            style: Theme.of(context).textTheme.headlineSmall),
-                        const SizedBox(height: 4),
-                        Text(
-                            'Latest reading of each type per day; insulin shows the daily logged dose total. Gaps mean no entry.',
-                            style: TextStyle(color: AppColors.textSecondary)),
-                        const SizedBox(height: 12),
-                        trend('Fasting glucose', entries, 'fasting',
-                            AppColors.primaryBlue),
-                        trend('Post-meal glucose', entries, 'post_meal',
-                            AppColors.amber),
-                        trend('General glucose', entries, 'general',
-                            AppColors.teal),
-                        trend('Insulin doses', entries, 'insulin_dose',
-                            AppColors.primaryBlue),
-                      ])),
-                  const SizedBox(height: 12),
-                  Text(
-                      'Tracking only. These entries do not adjust insulin treatment or verify laboratory results.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
-                ]));
-      });
+          final entries = (snapshot.data!['entries'] as List? ?? const [])
+              .whereType<Map>()
+              .toList();
+          final today =
+              entries.where((item) => item['log_date'] == widget.day).toList();
+          final glucose = today
+              .where((item) => item['category'] != 'insulin_dose')
+              .toList();
+          final doses = today
+              .where((item) => item['category'] == 'insulin_dose')
+              .toList();
+          final doseTotal = doses.fold<double>(
+              0, (sum, item) => sum + (readValue(item['value']) ?? 0));
+          return RefreshIndicator(
+              onRefresh: () async {
+                await refresh();
+              },
+              child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                  children: [
+                    card(Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.bloodtype_rounded,
+                                color: AppColors.danger),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: Text('Today’s Blood Glucose',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall))
+                          ]),
+                          const SizedBox(height: 5),
+                          Text(
+                              'Most recent patient-entered reading for each type.',
+                              style: TextStyle(color: AppColors.textSecondary)),
+                          const SizedBox(height: 15),
+                          Row(children: [
+                            snapshotTile(
+                                'Fasting',
+                                glucose,
+                                'fasting',
+                                Icons.wb_twilight_rounded,
+                                AppColors.primaryBlue),
+                            snapshotTile('Post-meal', glucose, 'post_meal',
+                                Icons.restaurant_rounded, AppColors.amber),
+                            snapshotTile('General', glucose, 'general',
+                                Icons.bloodtype_outlined, AppColors.teal),
+                          ]),
+                          const SizedBox(height: 13),
+                          Center(
+                              child: FilledButton.icon(
+                                  onPressed: () => add('fasting'),
+                                  icon: const Icon(Icons.add_rounded),
+                                  label: const Text('Add Glucose Reading'))),
+                        ])),
+                    const SizedBox(height: 16),
+                    card(Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.vaccines_rounded,
+                                color: AppColors.primaryBlue),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: Text('Insulin Doses',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall))
+                          ]),
+                          const SizedBox(height: 8),
+                          Text(
+                              doses.isEmpty
+                                  ? 'No doses logged today'
+                                  : '${doseTotal.toStringAsFixed(doseTotal.truncateToDouble() == doseTotal ? 0 : 2)} U logged today',
+                              style: TextStyle(
+                                  fontSize: 23,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary)),
+                          Text(
+                              'Entries record doses taken, not blood insulin levels.',
+                              style: TextStyle(color: AppColors.textSecondary)),
+                          const SizedBox(height: 10),
+                          FilledButton.tonalIcon(
+                              onPressed: () => add('insulin_dose'),
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('Log Insulin Dose')),
+                        ])),
+                    const SizedBox(height: 16),
+                    card(Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Today’s Entries',
+                              style: Theme.of(context).textTheme.headlineSmall),
+                          const SizedBox(height: 5),
+                          Text(
+                              'Patient-entered readings and doses are saved with timestamps.',
+                              style: TextStyle(color: AppColors.textSecondary)),
+                          if (today.isEmpty)
+                            Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Text(
+                                    'No readings or doses logged today.',
+                                    style: TextStyle(
+                                        color: AppColors.textSecondary))),
+                          for (final item in today)
+                            ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                    item['category'] == 'insulin_dose'
+                                        ? Icons.vaccines_rounded
+                                        : Icons.bloodtype_outlined,
+                                    color: item['category'] == 'insulin_dose'
+                                        ? AppColors.primaryBlue
+                                        : AppColors.danger),
+                                title: Text(label('${item['category']}')),
+                                subtitle:
+                                    Text('${item['value']} ${item['unit']}'),
+                                trailing: Text(time(item['created_at']),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary))),
+                        ])),
+                    const SizedBox(height: 16),
+                    card(Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Past 7 Days',
+                              style: Theme.of(context).textTheme.headlineSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                              'Latest reading of each type per day; insulin shows the daily logged dose total. Gaps mean no entry.',
+                              style: TextStyle(color: AppColors.textSecondary)),
+                          const SizedBox(height: 12),
+                          trend('Fasting glucose', entries, 'fasting',
+                              AppColors.primaryBlue),
+                          trend('Post-meal glucose', entries, 'post_meal',
+                              AppColors.amber),
+                          trend('General glucose', entries, 'general',
+                              AppColors.teal),
+                          trend('Insulin doses', entries, 'insulin_dose',
+                              AppColors.primaryBlue),
+                        ])),
+                    const SizedBox(height: 12),
+                    Text(
+                        'Tracking only. These entries do not adjust insulin treatment or verify laboratory results.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                  ]));
+        });
   }
 
   Widget snapshotTile(String name, List<Map> entries, String category,
@@ -395,7 +403,8 @@ class _MetabolicEntryDialogState extends State<_MetabolicEntryDialog> {
   Widget build(BuildContext context) {
     Theme.of(context);
     final dose = category == 'insulin_dose';
-    return AlertDialog(
+    return AppFormDialog(
+        icon: Icons.bloodtype_rounded,
         title: Text(dose ? 'Log Insulin Dose' : 'Add Glucose Reading'),
         content: Form(
             key: form,

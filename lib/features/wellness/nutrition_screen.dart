@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -130,102 +131,104 @@ class _NutritionScreenState extends State<NutritionScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Nutrition'), actions: [
-          WeeklyReportButton(
-              createReport: () => WeeklyReportService.nutrition(
-                  nutrition: _api,
-                  glucose:
-                      widget.glucoseDataSource ?? const ApiGlucoseDataSource(),
-                  endDate: DateTime.now())),
-          const ScreenHelpButton(topic: 'Nutrition'),
-          const SizedBox(width: 8),
-        ]),
-        body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverToBoxAdapter(
-                child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-                    child: Column(children: [
-                      Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [
-                                AppColors.heroStart,
-                                AppColors.heroEnd
-                              ]),
-                              borderRadius: BorderRadius.circular(20)),
-                          child: const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(Icons.restaurant_menu_rounded,
-                                    color: Colors.white, size: 34),
-                                SizedBox(height: 12),
-                                Text('Support your health, one day at a time',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w700)),
-                                SizedBox(height: 7),
-                                Text(
-                                    'Track food, water and blood glucose alongside your risk assessments.',
-                                    style: TextStyle(
-                                        color: Colors.white, height: 1.45)),
-                              ])),
-                      const SizedBox(height: 14),
-                      FilledButton.icon(
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => MealPlanScreen(
-                                      dashboard: widget.dashboard))),
-                          icon: const Icon(Icons.restaurant_menu_rounded),
-                          label: const Text('Generate Meal Plan')),
-                    ]))),
-            SliverToBoxAdapter(
-                child: TabBar(
-              labelColor: AppColors.primaryBlue,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicatorColor: AppColors.teal,
-              tabs: const [
-                Tab(text: 'Food', icon: Icon(Icons.restaurant_rounded)),
-                Tab(text: 'Water', icon: Icon(Icons.water_drop_outlined)),
-                Tab(text: 'Blood Glucose', icon: Icon(Icons.bloodtype_outlined))
-              ],
-            )),
-          ],
-          body: TabBarView(children: [
-            FutureBuilder<Map<String, dynamic>>(
-              future: _summary,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  if (snapshot.hasError) {
-                    return Center(
-                        child:
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('Unable to load your nutrition log.'),
-                      TextButton(
-                          onPressed: _refresh, child: const Text('Retry')),
-                    ]));
-                  }
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return RefreshIndicator(
-                    onRefresh: () async {
-                      await _refresh();
-                    },
-                    child: _foodContent(snapshot.data!));
-              },
-            ),
-            WaterTab(api: _api, day: _day),
-            GlucoseTab(
-                api: widget.glucoseDataSource ?? const ApiGlucoseDataSource(),
-                day: _day),
+        length: 3,
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(title: const Text('Nutrition'), actions: [
+            WeeklyReportButton(
+                createReport: () => WeeklyReportService.nutrition(
+                    nutrition: _api,
+                    glucose: widget.glucoseDataSource ??
+                        const ApiGlucoseDataSource(),
+                    endDate: DateTime.now())),
+            const ScreenHelpButton(topic: 'Nutrition'),
+            const SizedBox(width: 8),
           ]),
-        ),
-      ));
+          body: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                  child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+                      child: Column(children: [
+                        Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [
+                                  AppColors.heroStart,
+                                  AppColors.heroEnd
+                                ]),
+                                borderRadius: BorderRadius.circular(20)),
+                            child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.restaurant_menu_rounded,
+                                      color: Colors.white, size: 34),
+                                  SizedBox(height: 12),
+                                  Text('Support your health, one day at a time',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w700)),
+                                  SizedBox(height: 7),
+                                  Text(
+                                      'Track food, water and blood glucose alongside your risk assessments.',
+                                      style: TextStyle(
+                                          color: Colors.white, height: 1.45)),
+                                ])),
+                        const SizedBox(height: 14),
+                        FilledButton.icon(
+                            onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => MealPlanScreen(
+                                        dashboard: widget.dashboard))),
+                            icon: const Icon(Icons.restaurant_menu_rounded),
+                            label: const Text('Generate Meal Plan')),
+                      ]))),
+              SliverToBoxAdapter(
+                  child: TabBar(
+                labelColor: AppColors.primaryBlue,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: AppColors.teal,
+                tabs: const [
+                  Tab(text: 'Food', icon: Icon(Icons.restaurant_rounded)),
+                  Tab(text: 'Water', icon: Icon(Icons.water_drop_outlined)),
+                  Tab(
+                      text: 'Blood Glucose',
+                      icon: Icon(Icons.bloodtype_outlined))
+                ],
+              )),
+            ],
+            body: TabBarView(children: [
+              FutureBuilder<Map<String, dynamic>>(
+                future: _summary,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    if (snapshot.hasError) {
+                      return Center(
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                        const Text('Unable to load your nutrition log.'),
+                        TextButton(
+                            onPressed: _refresh, child: const Text('Retry')),
+                      ]));
+                    }
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return RefreshIndicator(
+                      onRefresh: () async {
+                        await _refresh();
+                      },
+                      child: _foodContent(snapshot.data!));
+                },
+              ),
+              WaterTab(api: _api, day: _day),
+              GlucoseTab(
+                  api: widget.glucoseDataSource ?? const ApiGlucoseDataSource(),
+                  day: _day),
+            ]),
+          ),
+        ));
   }
 
   Widget _foodContent(Map<String, dynamic> data) {
@@ -565,42 +568,43 @@ class _GoalDialogState extends State<_GoalDialog> {
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
-    return AlertDialog(
-        title: const Text('Daily Calorie Goal'),
-        content: Form(
-          key: _form,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text(
-                'Choose a personal tracking goal. Ask a clinician or dietitian for individual nutrition advice.'),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _controller,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'Goal', suffixText: 'kcal / day'),
-              validator: (text) {
-                final number = int.tryParse(text?.trim() ?? '');
-                return number == null || number < 500 || number > 6000
-                    ? 'Enter a value from 500 to 6000 kcal'
-                    : null;
-              },
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () {
-                if (_form.currentState!.validate()) {
-                  Navigator.pop(context, int.parse(_controller.text.trim()));
-                }
-              },
-              child: const Text('Save Goal')),
-        ],
-      );
+    return AppFormDialog(
+      icon: Icons.track_changes_rounded,
+      title: const Text('Daily Calorie Goal'),
+      content: Form(
+        key: _form,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text(
+              'Choose a personal tracking goal. Ask a clinician or dietitian for individual nutrition advice.'),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'Goal', suffixText: 'kcal / day'),
+            validator: (text) {
+              final number = int.tryParse(text?.trim() ?? '');
+              return number == null || number < 500 || number > 6000
+                  ? 'Enter a value from 500 to 6000 kcal'
+                  : null;
+            },
+          ),
+        ]),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        FilledButton(
+            onPressed: () {
+              if (_form.currentState!.validate()) {
+                Navigator.pop(context, int.parse(_controller.text.trim()));
+              }
+            },
+            child: const Text('Save Goal')),
+      ],
+    );
   }
 }
 
@@ -770,122 +774,118 @@ class _FoodEntryDialogState extends State<_FoodEntryDialog> {
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
-    return AlertDialog(
-          title: Text('Add ${widget.mealLabel}'),
-          content: SizedBox(
-              width: 460,
-              child: SingleChildScrollView(
-                  child: Form(
-                      key: _form,
-                      child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                'Search a food or ingredient in Open Food Facts, choose a previous entry, or enter nutrition from a label. Searches are sent to Open Food Facts.',
-                                style:
-                                    TextStyle(color: AppColors.textSecondary)),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                                controller: _name,
-                                onChanged: _searchFoods,
-                                decoration: const InputDecoration(
-                                    labelText: 'Food or ingredient',
-                                    prefixIcon: Icon(Icons.search_rounded)),
-                                validator: (text) =>
-                                    (text?.trim().length ?? 0) < 2
-                                        ? 'Enter a food name'
-                                        : null),
-                            if (_previous.isNotEmpty)
-                              Text('Previously Logged',
-                                  style:
-                                      Theme.of(context).textTheme.titleSmall),
-                            if (_previous.isNotEmpty)
-                              SizedBox(
-                                  height:
-                                      math.min(_previous.length * 48.0, 144),
-                                  child: ListView(children: [
-                                    for (final food in _previous)
-                                      ListTile(
-                                          dense: true,
-                                          title: Text('${food['food_name']}'),
-                                          onTap: () => _choose(food))
-                                  ])),
-                            if (_catalog.isNotEmpty)
-                              Text('Open Food Facts contributors (ODbL)',
-                                  style:
-                                      Theme.of(context).textTheme.titleSmall),
-                            if (_catalogSearching)
-                              const LinearProgressIndicator(minHeight: 2),
-                            if (_catalog.isNotEmpty)
-                              SizedBox(
-                                  height: math.min(_catalog.length * 62.0, 210),
-                                  child: ListView(children: [
-                                    for (final food in _catalog)
-                                      ListTile(
-                                          dense: true,
-                                          title: Text('${food['name']}'),
-                                          subtitle: Text(
-                                              '${food['brand'] ?? 'Product'} • ${food['calories_per_100g']} kcal/100 g'),
-                                          onTap: () => _choose(food))
-                                  ])),
-                            if (_catalogError != null)
-                              Text(_catalogError!,
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 12)),
-                            if (_selectedBarcode != null) ...[
-                              Text(
-                                  'Nutrition values verified from the selected Open Food Facts product.',
-                                  style: TextStyle(
-                                      color: AppColors.teal, fontSize: 12)),
-                              TextButton(
-                                  onPressed: _switchToManual,
-                                  child: const Text('Enter Values Manually')),
-                            ],
-                            const SizedBox(height: 10),
-                            TextFormField(
-                                controller: _amount,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: const InputDecoration(
-                                    labelText: 'Amount eaten', suffixText: 'g'),
-                                validator: (text) {
-                                  final value =
-                                      double.tryParse(text?.trim() ?? '');
-                                  return value == null ||
-                                          !value.isFinite ||
-                                          value <= 0 ||
-                                          value > 5000
-                                      ? 'Enter 0–5000 g'
-                                      : null;
-                                }),
-                            const SizedBox(height: 12),
-                            Text('Nutrition per 100 g',
+    return AppFormDialog(
+        icon: Icons.track_changes_rounded,
+        title: Text('Add ${widget.mealLabel}'),
+        content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+                child: Form(
+                    key: _form,
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              'Search a food or ingredient in Open Food Facts, choose a previous entry, or enter nutrition from a label. Searches are sent to Open Food Facts.',
+                              style: TextStyle(color: AppColors.textSecondary)),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                              controller: _name,
+                              onChanged: _searchFoods,
+                              decoration: const InputDecoration(
+                                  labelText: 'Food or ingredient',
+                                  prefixIcon: Icon(Icons.search_rounded)),
+                              validator: (text) =>
+                                  (text?.trim().length ?? 0) < 2
+                                      ? 'Enter a food name'
+                                      : null),
+                          if (_previous.isNotEmpty)
+                            Text('Previously Logged',
                                 style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 6),
-                            _nutrient(_calories, 'Energy', 1000),
-                            const SizedBox(height: 8),
-                            _nutrient(_carbs, 'Carbs', 100),
-                            const SizedBox(height: 8),
-                            _nutrient(_fat, 'Fat', 100),
-                            const SizedBox(height: 8),
-                            _nutrient(_protein, 'Protein', 100),
-                            if (_error != null)
-                              Padding(
-                                  padding: const EdgeInsets.only(top: 10),
-                                  child: Text(_error!,
-                                      style:
-                                          TextStyle(color: AppColors.danger))),
-                          ])))),
-          actions: [
-            TextButton(
-                onPressed: _busy ? null : () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: _busy ? null : _save,
-                child: Text(_busy ? 'Saving…' : 'Add Food')),
-          ]);
+                          if (_previous.isNotEmpty)
+                            SizedBox(
+                                height: math.min(_previous.length * 48.0, 144),
+                                child: ListView(children: [
+                                  for (final food in _previous)
+                                    ListTile(
+                                        dense: true,
+                                        title: Text('${food['food_name']}'),
+                                        onTap: () => _choose(food))
+                                ])),
+                          if (_catalog.isNotEmpty)
+                            Text('Open Food Facts contributors (ODbL)',
+                                style: Theme.of(context).textTheme.titleSmall),
+                          if (_catalogSearching)
+                            const LinearProgressIndicator(minHeight: 2),
+                          if (_catalog.isNotEmpty)
+                            SizedBox(
+                                height: math.min(_catalog.length * 62.0, 210),
+                                child: ListView(children: [
+                                  for (final food in _catalog)
+                                    ListTile(
+                                        dense: true,
+                                        title: Text('${food['name']}'),
+                                        subtitle: Text(
+                                            '${food['brand'] ?? 'Product'} • ${food['calories_per_100g']} kcal/100 g'),
+                                        onTap: () => _choose(food))
+                                ])),
+                          if (_catalogError != null)
+                            Text(_catalogError!,
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12)),
+                          if (_selectedBarcode != null) ...[
+                            Text(
+                                'Nutrition values verified from the selected Open Food Facts product.',
+                                style: TextStyle(
+                                    color: AppColors.teal, fontSize: 12)),
+                            TextButton(
+                                onPressed: _switchToManual,
+                                child: const Text('Enter Values Manually')),
+                          ],
+                          const SizedBox(height: 10),
+                          TextFormField(
+                              controller: _amount,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              decoration: const InputDecoration(
+                                  labelText: 'Amount eaten', suffixText: 'g'),
+                              validator: (text) {
+                                final value =
+                                    double.tryParse(text?.trim() ?? '');
+                                return value == null ||
+                                        !value.isFinite ||
+                                        value <= 0 ||
+                                        value > 5000
+                                    ? 'Enter 0–5000 g'
+                                    : null;
+                              }),
+                          const SizedBox(height: 12),
+                          Text('Nutrition per 100 g',
+                              style: Theme.of(context).textTheme.titleSmall),
+                          const SizedBox(height: 6),
+                          _nutrient(_calories, 'Energy', 1000),
+                          const SizedBox(height: 8),
+                          _nutrient(_carbs, 'Carbs', 100),
+                          const SizedBox(height: 8),
+                          _nutrient(_fat, 'Fat', 100),
+                          const SizedBox(height: 8),
+                          _nutrient(_protein, 'Protein', 100),
+                          if (_error != null)
+                            Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Text(_error!,
+                                    style: TextStyle(color: AppColors.danger))),
+                        ])))),
+        actions: [
+          TextButton(
+              onPressed: _busy ? null : () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: _busy ? null : _save,
+              child: Text(_busy ? 'Saving…' : 'Add Food')),
+        ]);
   }
 }

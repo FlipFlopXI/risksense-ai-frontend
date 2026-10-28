@@ -34,6 +34,8 @@ class ScreenHelpButton extends StatelessWidget {
         [
           _HelpSection('Account security',
               'These controls require your authenticated account.', [
+            _HelpEntry(Icons.medical_information_outlined, 'Health conditions',
+                'Patients can record clinician-diagnosed diabetes, heart disease, or another chronic condition. These entries are patient reported and can be changed later.'),
             _HelpEntry(Icons.lock_outline_rounded, 'Change password',
                 'Enter your current password. Other active sessions are signed out when the change succeeds.'),
             _HelpEntry(Icons.devices_rounded, 'Active sessions',
@@ -52,6 +54,11 @@ class ScreenHelpButton extends StatelessWidget {
                 _HelpEntry(Icons.notifications_outlined, 'Risk alerts',
                     'Patient dashboard badges can be shown or hidden; this does not change stored results.'),
               ]),
+          _HelpSection('Legal and privacy',
+              'Open the information panel before sharing health details or acting on a report.', [
+            _HelpEntry(Icons.gavel_rounded, 'Legal & Privacy',
+                'Explains saved health information, clinician access, account security, demonstration payments, and the limits of risk estimates.'),
+          ]),
         ],
         'RiskSense AI settings do not replace medical advice. Device preferences do not change backend access or clinical records.'),
     'Registration': _HelpContent(
@@ -172,6 +179,8 @@ class ScreenHelpButton extends StatelessWidget {
               'Uses age, sex, BMI, waist circumference, and systolic/diastolic blood pressure.'),
           _HelpEntry(Icons.favorite_rounded, 'Heart disease',
               'Uses age, sex, systolic blood pressure, total cholesterol, and a fasting-glucose category.'),
+          _HelpEntry(Icons.monitor_heart_outlined, 'Already diagnosed?',
+              'If you reported a diagnosis of the selected condition, a badge and switch offer a seven-day health trends report. You can still choose to run the risk model.'),
         ]),
       ],
       'Enter only real measurements. The result is a model estimate, not a diagnosis. Do not change treatment based on this screen alone.',
@@ -375,7 +384,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Risk scores are estimates, not diagnoses. A recent measurement may differ from your current condition.'),
     'Health Trends': _HelpContent(
         'Health trends',
-        'Explore recorded measurements across the last seven calendar days.',
+        'Explore recorded measurements across the last seven days. A patient with a reported diagnosis can also open a condition-specific trends report from Health Data Input.',
         [
           _HelpSection(
               'Graphs',
@@ -388,6 +397,13 @@ class ScreenHelpButton extends StatelessWidget {
                 _HelpEntry(Icons.favorite_rounded, 'Systolic pressure',
                     'Uses the upper blood-pressure measurement from saved vitals.'),
               ]),
+          _HelpSection('Condition-specific report',
+              'The report uses saved readings and highlights net increases to discuss, not causes or model contributions.', [
+            _HelpEntry(Icons.bar_chart_rounded, 'Readings to review',
+                'A first-to-latest increase in glucose, blood pressure or cholesterol is shown with its units and date. One reading cannot establish a trend.'),
+            _HelpEntry(Icons.picture_as_pdf_outlined, 'PDF report',
+                'Open a PDF summary of the available seven-day readings from the report screen.'),
+          ]),
         ],
         'These are historical readings. Discuss unusual or concerning values with a health professional.'),
     'Prediction History': _HelpContent(

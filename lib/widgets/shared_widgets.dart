@@ -23,12 +23,11 @@ class SecureBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-           Icon(Icons.shield_outlined,
-              size: 13, color: AppColors.primaryBlue),
+          Icon(Icons.shield_outlined, size: 13, color: AppColors.primaryBlue),
           const SizedBox(width: 5),
           Text(
             sessionText!,
-            style:  TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.primaryBlue,
@@ -89,7 +88,7 @@ class RiskMeterWidget extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style:  TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -126,37 +125,37 @@ class CountMeterWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Column(children: [
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: count.toDouble()),
-          duration: const Duration(milliseconds: 900),
-          builder: (context, value, _) => Container(
-            width: 84,
-            height: 84,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.teal, width: 7),
-              color: AppColors.teal.withOpacity(0.08),
-            ),
-            child: Text('${value.round()}',
-                style:  TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.teal)),
+      TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: count.toDouble()),
+        duration: const Duration(milliseconds: 900),
+        builder: (context, value, _) => Container(
+          width: 84,
+          height: 84,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.teal, width: 7),
+            color: AppColors.teal.withOpacity(0.08),
           ),
+          child: Text('${value.round()}',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.teal)),
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: 92,
-          child: Text(label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style:  TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary)),
-        ),
-      ]);
+      ),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: 92,
+        child: Text(label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary)),
+      ),
+    ]);
   }
 
 // ─── Section Header ───────────────────────────────────────────────────────────
@@ -227,12 +226,12 @@ class StatCard extends StatelessWidget {
           active: pulse,
           color: color,
           child: Container(
-            padding: const EdgeInsets.all(11),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppColors.cardWhite,
               borderRadius: BorderRadius.circular(16),
               border:
-                  Border.all(color: color.withValues(alpha: .38), width: 1.2),
+                  Border.all(color: color.withValues(alpha: .60), width: 1.6),
             ),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -253,7 +252,7 @@ class StatCard extends StatelessWidget {
               Text(title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style:  TextStyle(
+                  style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary)),
@@ -262,8 +261,7 @@ class StatCard extends StatelessWidget {
                 Text(subtitle!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style:  TextStyle(
-                        fontSize: 11, color: AppColors.textLight)),
+                    style: TextStyle(fontSize: 11, color: AppColors.textLight)),
               ],
             ]),
           ));
@@ -276,7 +274,7 @@ class StatCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.cardWhite,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: .38), width: 1.2),
+            border: Border.all(color: color.withValues(alpha: .60), width: 1.6),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -304,7 +302,7 @@ class StatCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   title,
-                  style:  TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textSecondary,
@@ -314,8 +312,7 @@ class StatCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style:  TextStyle(
-                        fontSize: 11, color: AppColors.textLight),
+                    style: TextStyle(fontSize: 11, color: AppColors.textLight),
                   ),
                 ],
               ],
@@ -368,17 +365,17 @@ class _VitalPulseBorderState extends State<VitalPulseBorder>
   Widget build(BuildContext context) {
     Theme.of(context);
     return Stack(children: [
-        widget.child,
-        if (widget.active && !MediaQuery.disableAnimationsOf(context))
-          Positioned.fill(
-              child: IgnorePointer(
-                  child: AnimatedBuilder(
-            animation: _animation,
-            builder: (_, __) => CustomPaint(
-                painter: _PulseOutline(
-                    widget.color, _animation.value * 2 * math.pi)),
-          ))),
-      ]);
+      widget.child,
+      if (widget.active && !MediaQuery.disableAnimationsOf(context))
+        Positioned.fill(
+            child: IgnorePointer(
+                child: AnimatedBuilder(
+          animation: _animation,
+          builder: (_, __) => CustomPaint(
+              painter:
+                  _PulseOutline(widget.color, _animation.value * 2 * math.pi)),
+        ))),
+    ]);
   }
 }
 
@@ -397,7 +394,7 @@ class _PulseOutline extends CustomPainter {
       ..shader = SweepGradient(
         colors: [
           color.withValues(alpha: .12),
-          color.withValues(alpha: .85),
+          color.withValues(alpha: .98),
           color.withValues(alpha: .12)
         ],
         stops: const [0, .15, 1],
@@ -471,7 +468,7 @@ class FeatureImpactBar extends StatelessWidget {
                 feature,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style:  TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
@@ -541,7 +538,7 @@ class MedAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: showBack,
       leading: showBack
           ? IconButton(
-              icon:  Icon(
+              icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
                 color: AppColors.primaryBlue,
@@ -582,8 +579,7 @@ class InfoRow extends StatelessWidget {
           Expanded(
               child: Text(
             label,
-            style:
-                 TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
           )),
           const SizedBox(width: 8),
           Flexible(
@@ -591,7 +587,7 @@ class InfoRow extends StatelessWidget {
             value,
             textAlign: TextAlign.end,
             softWrap: true,
-            style:  TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -617,7 +613,7 @@ class DisclaimerBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.amber.withOpacity(0.3)),
       ),
-      child:  Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber_rounded, color: AppColors.amber, size: 18),

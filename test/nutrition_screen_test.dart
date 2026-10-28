@@ -4,6 +4,7 @@ import 'package:medguide/features/wellness/nutrition_data_source.dart';
 import 'package:medguide/features/wellness/glucose_data_source.dart';
 import 'package:medguide/features/wellness/nutrition_screen.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/widgets/app_form_dialog.dart';
 
 class _FakeNutritionDataSource implements NutritionDataSource {
   int? waterGoal;
@@ -232,7 +233,7 @@ void main() {
     await tester.tap(find.byTooltip('Add Breakfast'));
     await tester.pumpAndSettle();
     final fields = find.descendant(
-        of: find.byType(AlertDialog), matching: find.byType(TextFormField));
+        of: find.byType(AppFormDialog), matching: find.byType(TextFormField));
     for (final (index, value) in <(int, String)>[
       (0, 'Oats'),
       (1, '100'),

@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -123,102 +124,109 @@ class _FitnessScreenState extends State<FitnessScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(title: const Text('Fitness'), actions: [
-            WeeklyReportButton(
-                createReport: () => WeeklyReportService.fitness(
-                    fitness: api, endDate: DateTime.now())),
-            const ScreenHelpButton(topic: 'Fitness'),
-            const SizedBox(width: 8)
-          ]),
-          body: NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                    SliverToBoxAdapter(
-                        child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-                            child: Column(children: [
-                              Container(
-                                  padding: const EdgeInsets.all(24),
-                                  decoration: BoxDecoration(
-                                      gradient: LinearGradient(colors: [
-                                        AppColors.heroStart,
-                                        AppColors.heroEnd
-                                      ]),
-                                      borderRadius: BorderRadius.circular(20)),
-                                  child: const Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Icon(Icons.fitness_center_rounded,
-                                            color: Colors.white, size: 34),
-                                        SizedBox(height: 12),
-                                        Text(
-                                            'Build a routine that fits your goals',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 22,
-                                                fontWeight: FontWeight.w700)),
-                                        SizedBox(height: 7),
-                                        Text(
-                                            'Track activity and body measurements alongside your risk assessments.',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                height: 1.45))
-                                      ])),
-                              const SizedBox(height: 14),
-                              FilledButton.icon(
-                                  onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => FitnessRoutineScreen(
-                                              dashboard: widget.dashboard))),
-                                  icon:
-                                      const Icon(Icons.directions_run_rounded),
-                                  label: const Text('Generate Fitness Routine'))
-                            ]))),
-                    SliverToBoxAdapter(
-                        child: TabBar(
-                            labelColor: AppColors.primaryBlue,
-                            unselectedLabelColor: AppColors.textSecondary,
-                            indicatorColor: AppColors.teal,
-                            tabs: const [
-                          Tab(
-                              text: 'Daily Activity',
-                              icon: Icon(Icons.directions_run_rounded)),
-                          Tab(
-                              text: 'Body Metrics',
-                              icon: Icon(Icons.monitor_weight_outlined))
-                        ])),
-                  ],
-              body: TabBarView(children: [
-                FutureBuilder<Map<String, dynamic>>(
-                    future: activity,
-                    builder: (_, snap) => snap.hasData
-                        ? activityTab(snap.data!)
-                        : snap.hasError
-                            ? Center(
-                                child: TextButton(
-                                    onPressed: () => setState(() {
-                                          activity = api.activity(day);
-                                        }),
-                                    child: const Text('Retry activity load')))
-                            : const Center(child: CircularProgressIndicator())),
-                FutureBuilder<Map<String, dynamic>>(
-                    future: body,
-                    builder: (_, snap) => snap.hasData
-                        ? bodyTab(snap.data!)
-                        : snap.hasError
-                            ? Center(
-                                child: TextButton(
-                                    onPressed: () => setState(() {
-                                          body = api.body();
-                                        }),
-                                    child:
-                                        const Text('Retry body metrics load')))
-                            : const Center(child: CircularProgressIndicator())),
-              ]))));
+        length: 2,
+        child: Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(title: const Text('Fitness'), actions: [
+              WeeklyReportButton(
+                  createReport: () => WeeklyReportService.fitness(
+                      fitness: api, endDate: DateTime.now())),
+              const ScreenHelpButton(topic: 'Fitness'),
+              const SizedBox(width: 8)
+            ]),
+            body: NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                      SliverToBoxAdapter(
+                          child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 12, 20, 14),
+                              child: Column(children: [
+                                Container(
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                        gradient: LinearGradient(colors: [
+                                          AppColors.heroStart,
+                                          AppColors.heroEnd
+                                        ]),
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    child: const Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Icon(Icons.fitness_center_rounded,
+                                              color: Colors.white, size: 34),
+                                          SizedBox(height: 12),
+                                          Text(
+                                              'Build a routine that fits your goals',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w700)),
+                                          SizedBox(height: 7),
+                                          Text(
+                                              'Track activity and body measurements alongside your risk assessments.',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  height: 1.45))
+                                        ])),
+                                const SizedBox(height: 14),
+                                FilledButton.icon(
+                                    onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                FitnessRoutineScreen(
+                                                    dashboard:
+                                                        widget.dashboard))),
+                                    icon: const Icon(
+                                        Icons.directions_run_rounded),
+                                    label:
+                                        const Text('Generate Fitness Routine'))
+                              ]))),
+                      SliverToBoxAdapter(
+                          child: TabBar(
+                              labelColor: AppColors.primaryBlue,
+                              unselectedLabelColor: AppColors.textSecondary,
+                              indicatorColor: AppColors.teal,
+                              tabs: const [
+                            Tab(
+                                text: 'Daily Activity',
+                                icon: Icon(Icons.directions_run_rounded)),
+                            Tab(
+                                text: 'Body Metrics',
+                                icon: Icon(Icons.monitor_weight_outlined))
+                          ])),
+                    ],
+                body: TabBarView(children: [
+                  FutureBuilder<Map<String, dynamic>>(
+                      future: activity,
+                      builder: (_, snap) => snap.hasData
+                          ? activityTab(snap.data!)
+                          : snap.hasError
+                              ? Center(
+                                  child: TextButton(
+                                      onPressed: () => setState(() {
+                                            activity = api.activity(day);
+                                          }),
+                                      child: const Text('Retry activity load')))
+                              : const Center(
+                                  child: CircularProgressIndicator())),
+                  FutureBuilder<Map<String, dynamic>>(
+                      future: body,
+                      builder: (_, snap) => snap.hasData
+                          ? bodyTab(snap.data!)
+                          : snap.hasError
+                              ? Center(
+                                  child: TextButton(
+                                      onPressed: () => setState(() {
+                                            body = api.body();
+                                          }),
+                                      child: const Text(
+                                          'Retry body metrics load')))
+                              : const Center(
+                                  child: CircularProgressIndicator())),
+                ]))));
   }
 
   Widget activityTab(Map<String, dynamic> data) {
@@ -519,57 +527,58 @@ class _FitnessEntryDialogState extends State<_FitnessEntryDialog> {
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
-    return AlertDialog(
-          title: const Text('Log Activity'),
-          content: Form(
-              key: key,
-              child: SingleChildScrollView(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text(
-                    'Enter measured values only. Leave unavailable values blank.'),
-                for (var i = 0; i < 4; i++)
-                  TextFormField(
-                      controller: inputs[i],
-                      keyboardType:
-                          TextInputType.numberWithOptions(decimal: i > 1),
-                      decoration: InputDecoration(
-                          labelText: const [
-                            'Steps',
-                            'Activity time',
-                            'Activity calories',
-                            'Distance'
-                          ][i],
-                          suffixText: const ['', 'min', 'kcal', 'km'][i]),
-                      validator: (text) {
-                        if ((text ?? '').isEmpty) return null;
-                        final n = double.tryParse(text!);
-                        return n == null ||
-                                n < 0 ||
-                                n > [100000, 1440, 10000, 500][i]
-                            ? 'Invalid measurement'
-                            : null;
-                      }),
-              ]))),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () {
-                  if (!key.currentState!.validate()) return;
-                  final n = inputs
-                      .map((input) => double.tryParse(input.text) ?? 0)
-                      .toList();
-                  if (n.every((value) => value == 0)) return;
-                  Navigator.pop(context, {
-                    'steps': n[0].toInt(),
-                    'activity_minutes': n[1].toInt(),
-                    'activity_calories_kcal': n[2],
-                    'distance_km': n[3]
-                  });
-                },
-                child: const Text('Save'))
-          ]);
+    return AppFormDialog(
+        icon: Icons.directions_run_rounded,
+        title: const Text('Log Activity'),
+        content: Form(
+            key: key,
+            child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text(
+                  'Enter measured values only. Leave unavailable values blank.'),
+              for (var i = 0; i < 4; i++)
+                TextFormField(
+                    controller: inputs[i],
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: i > 1),
+                    decoration: InputDecoration(
+                        labelText: const [
+                          'Steps',
+                          'Activity time',
+                          'Activity calories',
+                          'Distance'
+                        ][i],
+                        suffixText: const ['', 'min', 'kcal', 'km'][i]),
+                    validator: (text) {
+                      if ((text ?? '').isEmpty) return null;
+                      final n = double.tryParse(text!);
+                      return n == null ||
+                              n < 0 ||
+                              n > [100000, 1440, 10000, 500][i]
+                          ? 'Invalid measurement'
+                          : null;
+                    }),
+            ]))),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () {
+                if (!key.currentState!.validate()) return;
+                final n = inputs
+                    .map((input) => double.tryParse(input.text) ?? 0)
+                    .toList();
+                if (n.every((value) => value == 0)) return;
+                Navigator.pop(context, {
+                  'steps': n[0].toInt(),
+                  'activity_minutes': n[1].toInt(),
+                  'activity_calories_kcal': n[2],
+                  'distance_km': n[3]
+                });
+              },
+              child: const Text('Save'))
+        ]);
   }
 }
 
@@ -610,36 +619,37 @@ class _FitnessNumbersDialogState extends State<_FitnessNumbersDialog> {
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
-    return AlertDialog(
-          title: Text(widget.title),
-          content: Form(
-              key: key,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                for (var i = 0; i < inputs.length; i++)
-                  TextFormField(
-                      controller: inputs[i],
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(labelText: widget.labels[i]),
-                      validator: (text) {
-                        final n = double.tryParse(text ?? '');
-                        return n == null || n <= 0 || n > widget.limits[i]
-                            ? 'Enter a valid measurement'
-                            : null;
-                      })
-              ])),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () {
-                  if (key.currentState!.validate()) {
-                    Navigator.pop(context, double.parse(inputs.first.text));
-                  }
-                },
-                child: const Text('Save'))
-          ]);
+    return AppFormDialog(
+        icon: Icons.directions_run_rounded,
+        title: Text(widget.title),
+        content: Form(
+            key: key,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              for (var i = 0; i < inputs.length; i++)
+                TextFormField(
+                    controller: inputs[i],
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(labelText: widget.labels[i]),
+                    validator: (text) {
+                      final n = double.tryParse(text ?? '');
+                      return n == null || n <= 0 || n > widget.limits[i]
+                          ? 'Enter a valid measurement'
+                          : null;
+                    })
+            ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () {
+                if (key.currentState!.validate()) {
+                  Navigator.pop(context, double.parse(inputs.first.text));
+                }
+              },
+              child: const Text('Save'))
+        ]);
   }
 }
 
@@ -662,50 +672,51 @@ class _CompositionDialogState extends State<_CompositionDialog> {
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
-    return AlertDialog(
-          title: const Text('Body Composition'),
-          content: Form(
-              key: key,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text(
-                    'Save measured values separately. BMI uses height and weight.'),
-                TextFormField(
-                    controller: muscle,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                        labelText: 'Skeletal muscle', suffixText: 'kg'),
-                    validator: (text) {
-                      final n = double.tryParse(text ?? '');
-                      return n == null || n <= 0 || n > 250
-                          ? 'Enter a valid value'
-                          : null;
-                    }),
-                TextFormField(
-                    controller: fat,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                        labelText: 'Body fat', suffixText: '%'),
-                    validator: (text) {
-                      final n = double.tryParse(text ?? '');
-                      return n == null || n < 0 || n > 100
-                          ? 'Enter 0–100%'
-                          : null;
-                    }),
-              ])),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () {
-                  if (key.currentState!.validate()) {
-                    Navigator.pop(context,
-                        [double.parse(muscle.text), double.parse(fat.text)]);
-                  }
-                },
-                child: const Text('Save'))
-          ]);
+    return AppFormDialog(
+        icon: Icons.directions_run_rounded,
+        title: const Text('Body Composition'),
+        content: Form(
+            key: key,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text(
+                  'Save measured values separately. BMI uses height and weight.'),
+              TextFormField(
+                  controller: muscle,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Skeletal muscle', suffixText: 'kg'),
+                  validator: (text) {
+                    final n = double.tryParse(text ?? '');
+                    return n == null || n <= 0 || n > 250
+                        ? 'Enter a valid value'
+                        : null;
+                  }),
+              TextFormField(
+                  controller: fat,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Body fat', suffixText: '%'),
+                  validator: (text) {
+                    final n = double.tryParse(text ?? '');
+                    return n == null || n < 0 || n > 100
+                        ? 'Enter 0–100%'
+                        : null;
+                  }),
+            ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () {
+                if (key.currentState!.validate()) {
+                  Navigator.pop(context,
+                      [double.parse(muscle.text), double.parse(fat.text)]);
+                }
+              },
+              child: const Text('Save'))
+        ]);
   }
 }

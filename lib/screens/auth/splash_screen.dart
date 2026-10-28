@@ -119,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
                         FadeTransition(
                           opacity: _detailsFade,
                           child: Container(
-                            width: math.min(screenWidth - 56, 350),
+                            width: math.min(math.max(0, screenWidth - 56), 350),
                             padding: const EdgeInsets.fromLTRB(18, 13, 18, 11),
                             decoration: BoxDecoration(
                               color: AppColors.cardWhite.withValues(alpha: 0.9),

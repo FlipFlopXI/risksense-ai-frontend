@@ -40,6 +40,12 @@ class VitalSync extends ChangeNotifier {
           Map<String, dynamic>.from(await ApiClient.instance.get('/auth/me'));
       final id = patient['id']?.toString();
       if (id == null) throw StateError('Patient profile unavailable.');
+      final presence = Map<String, dynamic>.from(
+          await ApiClient.instance.get('/auth/wearable-presence') as Map);
+      if (presence['connected'] != true) {
+        throw StateError(
+            'Sign in on your wearable first, then try syncing again.');
+      }
       final records = await _read();
       if (_patientId != id) {
         current = null;
@@ -58,7 +64,11 @@ class VitalSync extends ChangeNotifier {
       listening = true;
       _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => poll());
     } catch (e) {
-      error = e is ApiException ? e.message : 'Could not read patient vitals.';
+      error = e is ApiException
+          ? e.message
+          : e is StateError
+              ? e.message
+              : 'Could not read patient vitals.';
     } finally {
       busy = false;
       notifyListeners();
@@ -77,6 +87,15 @@ class VitalSync extends ChangeNotifier {
     if (!listening || _polling) return;
     _polling = true;
     try {
+      final presence = Map<String, dynamic>.from(
+          await ApiClient.instance.get('/auth/wearable-presence') as Map);
+      if (presence['connected'] != true) {
+        stop();
+        error =
+            'The wearable is signed out. Sign in on your wearable to sync again.';
+        notifyListeners();
+        return;
+      }
       final records = await _read();
       final arrivals = records
           .where((r) => !_seen.contains(r['id'].toString()))

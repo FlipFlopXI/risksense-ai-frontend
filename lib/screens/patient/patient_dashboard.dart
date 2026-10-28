@@ -23,8 +23,13 @@ import 'package:medguide/services/app_preferences.dart';
 import 'package:medguide/widgets/wearable_sync_button.dart';
 
 class PatientDashboard extends StatefulWidget {
-  const PatientDashboard({super.key, this.previewData, this.previewNutrition,
-    this.previewGlucose, this.previewFitness, this.previewMindfulness});
+  const PatientDashboard(
+      {super.key,
+      this.previewData,
+      this.previewNutrition,
+      this.previewGlucose,
+      this.previewFitness,
+      this.previewMindfulness});
 
   /// Used only by the offline marketing screenshot generator; never persisted.
   final Map<String, dynamic>? previewData;
@@ -62,7 +67,8 @@ class _PatientDashboardState extends State<PatientDashboard> {
     final pages = <Widget>[
       _visitedTabs.contains(0)
           ? _HomeTab(
-              onRiskNotice: _openRiskHistory, onMetricsUpdated: _metricsUpdated,
+              onRiskNotice: _openRiskHistory,
+              onMetricsUpdated: _metricsUpdated,
               previewData: widget.previewData,
               previewNutrition: widget.previewNutrition,
               previewGlucose: widget.previewGlucose,
@@ -151,9 +157,14 @@ class _HomeTab extends StatefulWidget {
   final GlucoseDataSource? previewGlucose;
   final FitnessDataSource? previewFitness;
   final MindfulnessDataSource? previewMindfulness;
-  const _HomeTab({required this.onRiskNotice, required this.onMetricsUpdated,
-    this.previewData, this.previewNutrition, this.previewGlucose,
-    this.previewFitness, this.previewMindfulness});
+  const _HomeTab(
+      {required this.onRiskNotice,
+      required this.onMetricsUpdated,
+      this.previewData,
+      this.previewNutrition,
+      this.previewGlucose,
+      this.previewFitness,
+      this.previewMindfulness});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -386,8 +397,10 @@ class _HomeTabState extends State<_HomeTab> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(child: Text('Risk Overview',
-                          style: Theme.of(context).textTheme.headlineSmall)),
+                      Expanded(
+                          child: Text('Risk Overview',
+                              style:
+                                  Theme.of(context).textTheme.headlineSmall)),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -408,68 +421,91 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
                   const SizedBox(height: 20),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Expanded(child: GestureDetector(
-                        onTap: diabetesScore == null
-                            ? null
-                            : () =>
-                                Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => PredictionResultScreen(
-                                      condition: 'Diabetes',
-                                      riskScore: diabetesScore,
-                                      predictionId: diabetes?['id']?.toString(),
-                                      riskClassification:
-                                          diabetes?['risk_classification']
-                                              ?.toString(),
-                                      interpretation:
-                                          diabetes?['interpretation']
-                                              ?.toString(),
-                                      contributingFactors: (diabetes?[
-                                                      'contributing_factors']
-                                                  as List? ??
-                                              const [])
-                                          .whereType<Map>()
-                                          .map((item) =>
-                                              Map<String, dynamic>.from(item))
-                                          .toList()),
-                                )),
-                        child: RiskMeterWidget(
-                            label: 'Diabetes', percent: diabetesScore ?? 0),
-                      )),
+                      Expanded(
+                          child: Align(
+                              alignment: Alignment.topCenter,
+                              child: GestureDetector(
+                                onTap: diabetesScore == null
+                                    ? null
+                                    : () => Navigator.of(context)
+                                            .push(MaterialPageRoute(
+                                          builder: (_) => PredictionResultScreen(
+                                              condition: 'Diabetes',
+                                              riskScore: diabetesScore,
+                                              predictionId:
+                                                  diabetes?['id']?.toString(),
+                                              riskClassification:
+                                                  diabetes?['risk_classification']
+                                                      ?.toString(),
+                                              interpretation:
+                                                  diabetes?['interpretation']
+                                                      ?.toString(),
+                                              evidenceNote:
+                                                  diabetes?['explanation']
+                                                      ?.toString(),
+                                              contributingFactors:
+                                                  (diabetes?['contributing_factors']
+                                                              as List? ??
+                                                          const [])
+                                                      .whereType<Map>()
+                                                      .map((item) =>
+                                                          Map<String, dynamic>.from(
+                                                              item))
+                                                      .toList()),
+                                        )),
+                                child: RiskMeterWidget(
+                                    label: 'Diabetes',
+                                    percent: diabetesScore ?? 0),
+                              ))),
                       Container(width: 1, height: 80, color: AppColors.border),
-                      Expanded(child: GestureDetector(
-                        onTap: heartScore == null
-                            ? null
-                            : () =>
-                                Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => PredictionResultScreen(
-                                      condition: 'Heart Disease',
-                                      riskScore: heartScore,
-                                      predictionId: heart?['id']?.toString(),
-                                      riskClassification:
-                                          heart?['risk_classification']
-                                              ?.toString(),
-                                      interpretation:
-                                          heart?['interpretation']?.toString(),
-                                      contributingFactors: (heart?[
-                                                      'contributing_factors']
-                                                  as List? ??
-                                              const [])
-                                          .whereType<Map>()
-                                          .map((item) =>
-                                              Map<String, dynamic>.from(item))
-                                          .toList()),
-                                )),
-                        child: RiskMeterWidget(
-                            label: 'Heart Disease', percent: heartScore ?? 0),
-                      )),
+                      Expanded(
+                          child: Align(
+                              alignment: Alignment.topCenter,
+                              child: GestureDetector(
+                                onTap: heartScore == null
+                                    ? null
+                                    : () => Navigator.of(context)
+                                            .push(MaterialPageRoute(
+                                          builder: (_) => PredictionResultScreen(
+                                              condition: 'Heart Disease',
+                                              riskScore: heartScore,
+                                              predictionId:
+                                                  heart?['id']?.toString(),
+                                              riskClassification:
+                                                  heart?['risk_classification']
+                                                      ?.toString(),
+                                              interpretation:
+                                                  heart?['interpretation']
+                                                      ?.toString(),
+                                              evidenceNote:
+                                                  heart?['explanation']
+                                                      ?.toString(),
+                                              contributingFactors:
+                                                  (heart?['contributing_factors']
+                                                              as List? ??
+                                                          const [])
+                                                      .whereType<Map>()
+                                                      .map((item) =>
+                                                          Map<String, dynamic>.from(
+                                                              item))
+                                                      .toList()),
+                                        )),
+                                child: RiskMeterWidget(
+                                    label: 'Heart Disease',
+                                    percent: heartScore ?? 0),
+                              ))),
                       Container(width: 1, height: 80, color: AppColors.border),
-                      Expanded(child: CountMeterWidget(
-                          label: 'Drug Enquiries',
-                          count:
-                              data['drug_response_enquiries_today'] as int? ??
-                                  0)),
+                      Expanded(
+                          child: Align(
+                              alignment: Alignment.topCenter,
+                              child: CountMeterWidget(
+                                  label: 'Drug Enquiries',
+                                  count: data['drug_response_enquiries_today']
+                                          as int? ??
+                                      0))),
                     ],
                   ),
                 ],
@@ -504,9 +540,10 @@ class _HomeTabState extends State<_HomeTab> {
                   child: OutlinedButton(
                     onPressed: () =>
                         Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => NutritionScreen(dashboard: data,
-                        dataSource: widget.previewNutrition,
-                        glucoseDataSource: widget.previewGlucose),
+                      builder: (_) => NutritionScreen(
+                          dashboard: data,
+                          dataSource: widget.previewNutrition,
+                          glucoseDataSource: widget.previewGlucose),
                     )),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -530,8 +567,8 @@ class _HomeTabState extends State<_HomeTab> {
                   child: OutlinedButton(
                     onPressed: () =>
                         Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => FitnessScreen(dashboard: data,
-                        dataSource: widget.previewFitness),
+                      builder: (_) => FitnessScreen(
+                          dashboard: data, dataSource: widget.previewFitness),
                     )),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -555,7 +592,8 @@ class _HomeTabState extends State<_HomeTab> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => MindfulnessScreen(dataSource: widget.previewMindfulness))),
+                    builder: (_) => MindfulnessScreen(
+                        dataSource: widget.previewMindfulness))),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   foregroundColor: AppColors.teal,
@@ -693,39 +731,37 @@ class _SessionExpiryBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return StreamBuilder<DateTime>(
-        stream: Stream<DateTime>.periodic(
-            const Duration(seconds: 30), (_) => DateTime.now()),
-        initialData: DateTime.now(),
-        builder: (context, snapshot) {
-          final expires = ApiClient.instance.accessTokenExpiresAt;
-          final remaining =
-              expires?.difference(snapshot.data ?? DateTime.now());
-          final label = remaining == null
-              ? 'Session expiry unavailable'
-              : remaining.isNegative
-                  ? 'Session access token expired'
-                  : 'Session access token expires in: ${remaining.inMinutes + 1} minutes';
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceBlue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(children: [
-              Icon(Icons.timer_outlined,
-                  size: 16, color: AppColors.primaryBlue),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Text(label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primaryBlue,
-                        fontWeight: FontWeight.w500,
-                      ))),
-            ]),
-          );
-        },
-      );
+      stream: Stream<DateTime>.periodic(
+          const Duration(seconds: 30), (_) => DateTime.now()),
+      initialData: DateTime.now(),
+      builder: (context, snapshot) {
+        final expires = ApiClient.instance.accessTokenExpiresAt;
+        final remaining = expires?.difference(snapshot.data ?? DateTime.now());
+        final label = remaining == null
+            ? 'Session expiry unavailable'
+            : remaining.isNegative
+                ? 'Session access token expired'
+                : 'Session access token expires in: ${remaining.inMinutes + 1} minutes';
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceBlue,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            Icon(Icons.timer_outlined, size: 16, color: AppColors.primaryBlue),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w500,
+                    ))),
+          ]),
+        );
+      },
+    );
   }
 }
 

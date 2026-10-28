@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:medguide/screens/shared/prediction_result_screen.dart';
+import 'package:medguide/screens/shared/condition_trend_report_screen.dart';
 import 'package:medguide/services/api_client.dart';
+import 'package:medguide/services/recorded_conditions.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
 import 'package:medguide/widgets/wearable_sync_button.dart';
@@ -37,6 +39,8 @@ class _DataInputScreenState extends State<DataInputScreen> {
       _activity = 'Not recorded',
       _alcohol = 'Not recorded';
   String _model = 'diabetes';
+  RecordedConditions _conditions = const RecordedConditions();
+  bool _showTrendsInstead = false;
   Map<String, dynamic>? _patient;
   Map<String, dynamic>? _fitnessBody;
   bool _profileExists = false, _loading = true, _submitting = false;
@@ -47,7 +51,13 @@ class _DataInputScreenState extends State<DataInputScreen> {
   void initState() {
     super.initState();
     if (!widget.clinicianMode) VitalSync.instance.addListener(_onVitalSync);
+    _fastingGlucose.addListener(_labChanged);
+    _cholesterol.addListener(_labChanged);
     _load();
+  }
+
+  void _labChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onVitalSync() {
@@ -114,6 +124,8 @@ class _DataInputScreenState extends State<DataInputScreen> {
         _patient = patient;
         _fitnessBody = fitnessBody;
         _profileExists = profile != null;
+        _conditions = RecordedConditions.fromText(
+            profile?['existing_conditions']?.toString());
         _set(_height, profile?['height_cm']);
         _set(_weight, profile?['weight_kg']);
         _set(_waist, profile?['waist_circumference_cm']);
@@ -237,8 +249,23 @@ class _DataInputScreenState extends State<DataInputScreen> {
         await _saveLab(
             'total_cholesterol', _number(_cholesterol)!, 'mg/dL', now);
       }
-      final result = Map<String, dynamic>.from(await ApiClient.instance
-          .post('/risk-analysis', data: {'model': _model}));
+      if (_showTrendsInstead && _conditions.hasDiagnosisFor(_model)) {
+        if (!mounted) return;
+        setState(() => _submitting = false);
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => ConditionTrendReportScreen(condition: _model),
+        ));
+        if (mounted) setState(() => _expanded.updateAll((key, value) => true));
+        return;
+      }
+      final result = Map<String, dynamic>.from(
+          await ApiClient.instance.post('/risk-analysis', data: {
+        'model': _model,
+        if (_model == 'heart_disease') ...{
+          'fasting_glucose': _number(_fastingGlucose),
+          'total_cholesterol': _number(_cholesterol),
+        },
+      }));
       if (!mounted) return;
       setState(() => _submitting = false);
       await Navigator.of(context).push(MaterialPageRoute(
@@ -248,6 +275,7 @@ class _DataInputScreenState extends State<DataInputScreen> {
               predictionId: result['id']?.toString(),
               riskClassification: result['risk_classification']?.toString(),
               interpretation: result['interpretation']?.toString(),
+              evidenceNote: result['explanation']?.toString(),
               contributingFactors:
                   (result['contributing_factors'] as List<dynamic>? ?? const [])
                       .whereType<Map>()
@@ -294,6 +322,8 @@ class _DataInputScreenState extends State<DataInputScreen> {
   @override
   void dispose() {
     if (!widget.clinicianMode) VitalSync.instance.removeListener(_onVitalSync);
+    _fastingGlucose.removeListener(_labChanged);
+    _cholesterol.removeListener(_labChanged);
     for (final c in [
       _height,
       _weight,
@@ -317,213 +347,285 @@ class _DataInputScreenState extends State<DataInputScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: MedAppBar(
-            title: widget.clinicianMode
-                ? 'Demonstration Analysis'
-                : 'Health Data Input',
-            helpTopic: widget.clinicianMode
-                ? 'Demonstration Analysis'
-                : 'Health Data Input',
-            actions: widget.clinicianMode ? null : [const WearableSyncButton()],
-            showBack: !widget.clinicianMode,
-            showSecureBadge: false),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Form(
-                key: _formKey,
-                child: ListView(padding: const EdgeInsets.all(20), children: [
-                  Text('Clinical Profile',
-                      style: Theme.of(context).textTheme.headlineLarge),
-                  Text(widget.clinicianMode
-                      ? 'Enter demonstration measurements. Diabetes uses age, sex, height/weight, waist and blood pressure; Heart Disease uses age, sex, systolic BP, fasting glucose and total cholesterol. Nothing is saved.'
-                      : 'Record current measurements, then choose a risk model.'),
-                  const SizedBox(height: 20),
-                  _section(
-                      'Demographics',
-                      Icons.person_rounded,
-                      AppColors.primaryBlue,
-                      widget.clinicianMode
-                          ? [
-                              _field('Age (years)', _ageInput,
-                                  Icons.cake_rounded, AppColors.amber,
-                                  required: true),
-                              _dropdown(
-                                  'Sex used by model',
-                                  _sexInput,
-                                  ['Female', 'Male'],
-                                  Icons.badge_rounded,
-                                  AppColors.teal,
-                                  (v) => setState(() => _sexInput = v!)),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: TextFormField(
-                                  controller: _ethnicityInput,
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        'Ethnicity (optional; not used by these models)',
-                                    prefixIcon: Icon(Icons.public_rounded,
-                                        color: AppColors.primaryBlue),
-                                  ),
+      backgroundColor: AppColors.background,
+      appBar: MedAppBar(
+          title: widget.clinicianMode
+              ? 'Demonstration Analysis'
+              : 'Health Data Input',
+          helpTopic: widget.clinicianMode
+              ? 'Demonstration Analysis'
+              : 'Health Data Input',
+          actions: widget.clinicianMode ? null : [const WearableSyncButton()],
+          showBack: !widget.clinicianMode,
+          showSecureBadge: false),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: ListView(padding: const EdgeInsets.all(20), children: [
+                Text('Clinical Profile',
+                    style: Theme.of(context).textTheme.headlineLarge),
+                Text(widget.clinicianMode
+                    ? 'Enter demonstration measurements. Diabetes uses age, sex, height/weight, waist and blood pressure; Heart Disease uses age, sex, systolic BP, fasting glucose and total cholesterol. Nothing is saved.'
+                    : 'Record current measurements, then choose a risk model.'),
+                const SizedBox(height: 20),
+                _section(
+                    'Demographics',
+                    Icons.person_rounded,
+                    AppColors.primaryBlue,
+                    widget.clinicianMode
+                        ? [
+                            _field('Age (years)', _ageInput, Icons.cake_rounded,
+                                AppColors.amber,
+                                required: true),
+                            _dropdown(
+                                'Sex used by model',
+                                _sexInput,
+                                ['Female', 'Male'],
+                                Icons.badge_rounded,
+                                AppColors.teal,
+                                (v) => setState(() => _sexInput = v!)),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: TextFormField(
+                                controller: _ethnicityInput,
+                                decoration: InputDecoration(
+                                  labelText:
+                                      'Ethnicity (optional; not used by these models)',
+                                  prefixIcon: Icon(Icons.public_rounded,
+                                      color: AppColors.primaryBlue),
                                 ),
                               ),
-                              Text(
-                                  'Demonstration inputs are used in memory for this analysis and are not saved to a patient record.',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary)),
-                            ]
-                          : [
-                              _readonly(
-                                  'Age',
-                                  _age?.toString() ?? 'Not recorded',
-                                  Icons.cake_rounded,
-                                  AppColors.amber),
-                              _readonly(
-                                  'Sex',
-                                  _patient?['gender']?.toString() ??
-                                      'Not recorded',
-                                  Icons.badge_rounded,
-                                  AppColors.teal),
-                              _readonly(
-                                  'Ethnicity',
-                                  _patient?['ethnicity']?.toString() ??
-                                      'Not recorded',
-                                  Icons.public_rounded,
-                                  AppColors.primaryBlue),
-                              Text(
-                                  'Demographics come from registration and cannot be changed here.',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary)),
-                            ]),
-                  _section('Lifestyle', Icons.directions_run_rounded,
-                      AppColors.success, [
-                    _dropdown(
-                        'Smoking status',
-                        _smoking,
-                        ['Not recorded', 'Never', 'Former', 'Current'],
-                        Icons.smoke_free_rounded,
-                        AppColors.danger,
-                        (v) => setState(() => _smoking = v!)),
-                    _dropdown(
-                        'Activity level',
-                        _activity,
-                        [
-                          'Not recorded',
-                          'Sedentary',
-                          'Light',
-                          'Moderate',
-                          'Active'
-                        ],
-                        Icons.fitness_center_rounded,
-                        AppColors.success,
-                        (v) => setState(() => _activity = v!)),
-                    _dropdown(
-                        'Alcohol use',
-                        _alcohol,
-                        ['Not recorded', 'None', 'Occasional', 'Regular', 'Prefer not to say'],
-                        Icons.local_bar_rounded,
-                        AppColors.amber,
-                        (v) => setState(() => _alcohol = v!)),
-                  ]),
-                  _section(
-                      'Vitals', Icons.monitor_heart_rounded, AppColors.danger, [
-                    if (!widget.clinicianMode)
-                      Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(children: [
-                            _syncBadge(
-                                'Not Synced',
-                                !VitalSync.instance.listening,
-                                AppColors.textSecondary),
-                            const SizedBox(width: 8),
-                            _syncBadge(
-                                VitalSync.instance.receiving
-                                    ? 'Receiving'
-                                    : VitalSync.instance.hasReceivedUpdate
-                                        ? 'Synced'
-                                        : 'Listening',
-                                VitalSync.instance.listening,
+                            ),
+                            Text(
+                                'Demonstration inputs are used in memory for this analysis and are not saved to a patient record.',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary)),
+                          ]
+                        : [
+                            _readonly('Age', _age?.toString() ?? 'Not recorded',
+                                Icons.cake_rounded, AppColors.amber),
+                            _readonly(
+                                'Sex',
+                                _patient?['gender']?.toString() ??
+                                    'Not recorded',
+                                Icons.badge_rounded,
                                 AppColors.teal),
-                          ])),
-                    _field('Height', _height, Icons.height_rounded,
-                        AppColors.primaryBlue),
-                    _field('Weight', _weight, Icons.monitor_weight_rounded,
-                        AppColors.teal),
-                    _field('Waist circumference (cm)', _waist,
-                        Icons.straighten_rounded, AppColors.amber),
-                    if (!widget.clinicianMode && _fitnessBody != null) ...[
-                      _readonly(
-                          'BMI',
-                          _fitnessBody!['bmi'] == null
-                              ? 'Not available'
-                              : (_fitnessBody!['bmi'] as num)
-                                  .toStringAsFixed(1),
-                          Icons.monitor_weight_outlined,
-                          AppColors.primaryBlue),
-                      if (_fitnessBody!['composition'] is Map) ...[
-                        _readonly(
-                            'Skeletal muscle',
-                            '${(_fitnessBody!['composition'] as Map)['skeletal_muscle_kg']} kg',
-                            Icons.fitness_center_rounded,
-                            AppColors.teal),
-                        _readonly(
-                            'Body fat',
-                            '${(_fitnessBody!['composition'] as Map)['body_fat_percent']} %',
-                            Icons.pie_chart_outline_rounded,
-                            AppColors.amber),
+                            _readonly(
+                                'Ethnicity',
+                                _patient?['ethnicity']?.toString() ??
+                                    'Not recorded',
+                                Icons.public_rounded,
+                                AppColors.primaryBlue),
+                            Text(
+                                'Demographics come from registration and cannot be changed here.',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary)),
+                          ]),
+                _section('Lifestyle', Icons.directions_run_rounded,
+                    AppColors.success, [
+                  _dropdown(
+                      'Smoking status',
+                      _smoking,
+                      ['Not recorded', 'Never', 'Former', 'Current'],
+                      Icons.smoke_free_rounded,
+                      AppColors.danger,
+                      (v) => setState(() => _smoking = v!)),
+                  _dropdown(
+                      'Activity level',
+                      _activity,
+                      [
+                        'Not recorded',
+                        'Sedentary',
+                        'Light',
+                        'Moderate',
+                        'Active'
                       ],
-                    ],
-                    _field('Systolic BP', _systolic, Icons.favorite_rounded,
-                        AppColors.danger),
-                    _field('Diastolic BP', _diastolic,
-                        Icons.favorite_border_rounded, AppColors.danger),
-                    _field('Heart rate', _heartRate,
-                        Icons.monitor_heart_rounded, AppColors.teal),
-                    _field('Oxygen saturation', _oxygen, Icons.air_rounded,
+                      Icons.fitness_center_rounded,
+                      AppColors.success,
+                      (v) => setState(() => _activity = v!)),
+                  _dropdown(
+                      'Alcohol use',
+                      _alcohol,
+                      [
+                        'Not recorded',
+                        'None',
+                        'Occasional',
+                        'Regular',
+                        'Prefer not to say'
+                      ],
+                      Icons.local_bar_rounded,
+                      AppColors.amber,
+                      (v) => setState(() => _alcohol = v!)),
+                ]),
+                _section(
+                    'Vitals', Icons.monitor_heart_rounded, AppColors.danger, [
+                  if (!widget.clinicianMode)
+                    Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(children: [
+                          _syncBadge(
+                              'Not Synced',
+                              !VitalSync.instance.listening,
+                              AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          _syncBadge(
+                              VitalSync.instance.receiving
+                                  ? 'Receiving'
+                                  : VitalSync.instance.hasReceivedUpdate
+                                      ? 'Synced'
+                                      : 'Listening',
+                              VitalSync.instance.listening,
+                              AppColors.teal),
+                        ])),
+                  _field('Height', _height, Icons.height_rounded,
+                      AppColors.primaryBlue),
+                  _field('Weight', _weight, Icons.monitor_weight_rounded,
+                      AppColors.teal),
+                  _field('Waist circumference (cm)', _waist,
+                      Icons.straighten_rounded, AppColors.amber),
+                  if (!widget.clinicianMode && _fitnessBody != null) ...[
+                    _readonly(
+                        'BMI',
+                        _fitnessBody!['bmi'] == null
+                            ? 'Not available'
+                            : (_fitnessBody!['bmi'] as num).toStringAsFixed(1),
+                        Icons.monitor_weight_outlined,
                         AppColors.primaryBlue),
-                    _field('Temperature (°C)', _temperature,
-                        Icons.thermostat_rounded, AppColors.amber),
-                  ]),
-                  _section('Model laboratory inputs', Icons.science_rounded,
-                      AppColors.primaryBlue, [
-                    _field('Fasting glucose (mg/dL)', _fastingGlucose,
-                        Icons.water_drop_rounded, AppColors.primaryBlue),
-                    _field('Total cholesterol (mg/dL)', _cholesterol,
-                        Icons.biotech_rounded, AppColors.teal),
-                  ]),
-                  const DisclaimerBanner(),
-                  const SizedBox(height: 20),
-                  Text('Choose risk analysis',
-                      style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(
-                        child: _modelCard('diabetes', 'Diabetes',
-                            Icons.bloodtype_rounded, AppColors.primaryBlue)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _modelCard('heart_disease', 'Heart Disease',
-                            Icons.favorite_rounded, AppColors.danger))
-                  ]),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                      height: 54,
-                      child: ElevatedButton.icon(
-                          onPressed: _submitting ? null : _submit,
-                          icon: _submitting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.analytics_rounded),
-                          label: Text(
-                              'Run ${_model == 'diabetes' ? 'Diabetes' : 'Heart Disease'} Analysis'))),
-                  const SizedBox(height: 24),
-                ])),
-      );
+                    if (_fitnessBody!['composition'] is Map) ...[
+                      _readonly(
+                          'Skeletal muscle',
+                          '${(_fitnessBody!['composition'] as Map)['skeletal_muscle_kg']} kg',
+                          Icons.fitness_center_rounded,
+                          AppColors.teal),
+                      _readonly(
+                          'Body fat',
+                          '${(_fitnessBody!['composition'] as Map)['body_fat_percent']} %',
+                          Icons.pie_chart_outline_rounded,
+                          AppColors.amber),
+                    ],
+                  ],
+                  _field('Systolic BP', _systolic, Icons.favorite_rounded,
+                      AppColors.danger),
+                  _field('Diastolic BP', _diastolic,
+                      Icons.favorite_border_rounded, AppColors.danger),
+                  _field('Heart rate', _heartRate, Icons.monitor_heart_rounded,
+                      AppColors.teal),
+                  _field('Oxygen saturation', _oxygen, Icons.air_rounded,
+                      AppColors.primaryBlue),
+                  _field('Temperature (Â°C)', _temperature,
+                      Icons.thermostat_rounded, AppColors.amber),
+                ]),
+                _section('Model laboratory inputs', Icons.science_rounded,
+                    AppColors.primaryBlue, [
+                  _field('Fasting glucose (mg/dL)', _fastingGlucose,
+                      Icons.water_drop_rounded, AppColors.primaryBlue),
+                  _field('Total cholesterol (mg/dL)', _cholesterol,
+                      Icons.biotech_rounded, AppColors.teal),
+                ]),
+                const DisclaimerBanner(),
+                const SizedBox(height: 20),
+                Text('Choose risk analysis',
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(
+                      child: _modelCard('diabetes', 'Diabetes',
+                          Icons.bloodtype_rounded, AppColors.primaryBlue)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: _modelCard('heart_disease', 'Heart Disease',
+                          Icons.favorite_rounded, AppColors.danger))
+                ]),
+                if (_model == 'heart_disease' &&
+                    (_number(_fastingGlucose) == null ||
+                        _number(_cholesterol) == null)) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.amber.withValues(alpha: .11),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: AppColors.amber.withValues(alpha: .4)),
+                    ),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              color: AppColors.amber),
+                          const SizedBox(width: 9),
+                          Expanded(
+                              child: Text(
+                            'You can run this analysis without new fasting glucose or total cholesterol readings. Missing values are estimated from the model’s training data, so the result has additional uncertainty. Older lab readings will not be reused.',
+                            style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 12,
+                                height: 1.4),
+                          )),
+                        ]),
+                  ),
+                ],
+                if (!widget.clinicianMode &&
+                    _conditions.hasDiagnosisFor(_model)) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.amber.withValues(alpha: .11),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: AppColors.amber.withValues(alpha: .4)),
+                    ),
+                    child: Column(children: [
+                      Row(children: [
+                        Icon(Icons.info_outline_rounded,
+                            color: AppColors.amber),
+                        const SizedBox(width: 9),
+                        Expanded(
+                            child: Text(
+                          'Already diagnosed? View health trends instead.',
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700),
+                        )),
+                      ]),
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Use Health Trends Report'),
+                        subtitle: const Text(
+                            'Uses recorded measurements. You can still run the risk model.'),
+                        value: _showTrendsInstead,
+                        activeTrackColor: AppColors.teal,
+                        onChanged: (value) =>
+                            setState(() => _showTrendsInstead = value),
+                      ),
+                    ]),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                SizedBox(
+                    height: 54,
+                    child: ElevatedButton.icon(
+                        onPressed: _submitting ? null : _submit,
+                        icon: _submitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.analytics_rounded),
+                        label: FittedBox(
+                            child: Text(_showTrendsInstead &&
+                                    _conditions.hasDiagnosisFor(_model)
+                                ? 'Generate Health Trends Report'
+                                : 'Run ${_model == 'diabetes' ? 'Diabetes' : 'Heart Disease'} Analysis')))),
+                const SizedBox(height: 24),
+              ])),
+    );
   }
 
   Widget _section(
@@ -580,7 +682,7 @@ class _DataInputScreenState extends State<DataInputScreen> {
                                 : identical(c, _oxygen)
                                     ? ('%', 50.0, 100.0, false)
                                     : identical(c, _temperature)
-                                        ? ('°C', 30.0, 43.0, false)
+                                        ? ('Â°C', 30.0, 43.0, false)
                                         : identical(c, _fastingGlucose)
                                             ? ('mg/dL', 20.0, 600.0, false)
                                             : ('mg/dL', 50.0, 600.0, false);
@@ -595,58 +697,67 @@ class _DataInputScreenState extends State<DataInputScreen> {
                 (identical(c, _systolic) ||
                     identical(c, _fastingGlucose) ||
                     identical(c, _cholesterol)));
+    final lockedByWearable = !widget.clinicianMode &&
+        VitalSync.instance.listening &&
+        (identical(c, _systolic) ||
+            identical(c, _diastolic) ||
+            identical(c, _heartRate) ||
+            identical(c, _oxygen) ||
+            identical(c, _temperature));
     return Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: TextFormField(
-            controller: c,
-            readOnly: !widget.clinicianMode &&
-                VitalSync.instance.listening &&
-                (identical(c, _systolic) ||
-                    identical(c, _diastolic) ||
-                    identical(c, _heartRate) ||
-                    identical(c, _oxygen) ||
-                    identical(c, _temperature)),
-            keyboardType: TextInputType.numberWithOptions(decimal: !config.$4),
-            inputFormatters: [
-              TextInputFormatter.withFunction((oldValue, newValue) {
-                final pattern = config.$4
-                    ? RegExp(r'^\d{0,3}$')
-                    : RegExp(r'^\d{0,3}(\.\d{0,2})?$');
-                return pattern.hasMatch(newValue.text) ? newValue : oldValue;
-              })
-            ],
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            decoration: InputDecoration(
-                labelText: label.split(' (').first,
-                prefixIcon: Icon(icon, size: 25, color: color),
-                suffixText: config.$1,
-                filled: true,
-                fillColor: AppColors.cardWhite,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12))),
-            validator: (v) {
-              final value = v?.trim() ?? '';
-              if (value.isEmpty) {
-                return required || neededForDemo
-                    ? 'Required for this analysis'
-                    : null;
-              }
-              final number = double.tryParse(value);
-              if (number == null ||
-                  !number.isFinite ||
-                  (config.$4 && int.tryParse(value) == null)) {
-                return 'Enter a valid ${config.$4 ? 'whole number' : 'number'}';
-              }
-              if (number < config.$2 || number > config.$3) {
-                return 'Enter ${config.$2.toStringAsFixed(0)}–${config.$3.toStringAsFixed(0)} ${config.$1}';
-              }
-              if (identical(c, _diastolic) &&
-                  _number(_systolic) != null &&
-                  number >= _number(_systolic)!) {
-                return 'Must be lower than systolic BP';
-              }
-              return null;
-            }));
+        child: IgnorePointer(
+            ignoring: lockedByWearable,
+            child: TextFormField(
+                controller: c,
+                readOnly: lockedByWearable,
+                canRequestFocus: !lockedByWearable,
+                showCursor: !lockedByWearable,
+                enableInteractiveSelection: !lockedByWearable,
+                keyboardType:
+                    TextInputType.numberWithOptions(decimal: !config.$4),
+                inputFormatters: [
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    final pattern = config.$4
+                        ? RegExp(r'^\d{0,3}$')
+                        : RegExp(r'^\d{0,3}(\.\d{0,2})?$');
+                    return pattern.hasMatch(newValue.text)
+                        ? newValue
+                        : oldValue;
+                  })
+                ],
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                    labelText: label.split(' (').first,
+                    prefixIcon: Icon(icon, size: 25, color: color),
+                    suffixText: config.$1,
+                    filled: true,
+                    fillColor: AppColors.cardWhite,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                validator: (v) {
+                  final value = v?.trim() ?? '';
+                  if (value.isEmpty) {
+                    return required || neededForDemo
+                        ? 'Required for this analysis'
+                        : null;
+                  }
+                  final number = double.tryParse(value);
+                  if (number == null ||
+                      !number.isFinite ||
+                      (config.$4 && int.tryParse(value) == null)) {
+                    return 'Enter a valid ${config.$4 ? 'whole number' : 'number'}';
+                  }
+                  if (number < config.$2 || number > config.$3) {
+                    return 'Enter ${config.$2.toStringAsFixed(0)}â€“${config.$3.toStringAsFixed(0)} ${config.$1}';
+                  }
+                  if (identical(c, _diastolic) &&
+                      _number(_systolic) != null &&
+                      number >= _number(_systolic)!) {
+                    return 'Must be lower than systolic BP';
+                  }
+                  return null;
+                })));
   }
 
   Widget _syncBadge(String text, bool active, Color color) => Container(
@@ -685,7 +796,10 @@ class _DataInputScreenState extends State<DataInputScreen> {
   Widget _modelCard(String value, String label, IconData icon, Color color) {
     final selected = _model == value;
     return InkWell(
-        onTap: () => setState(() => _model = value),
+        onTap: () => setState(() {
+              _model = value;
+              _showTrendsInstead = false;
+            }),
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),

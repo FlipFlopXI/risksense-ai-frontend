@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -165,95 +166,78 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, update) => Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Expanded(
-                      child: Text('Filter predictions',
-                          style: Theme.of(context).textTheme.headlineSmall),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-                  const Text('Risk analysis',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    _chip('All analyses', type == _RiskType.all,
-                        () => update(() => type = _RiskType.all)),
-                    _chip('Diabetes only', type == _RiskType.diabetes,
-                        () => update(() => type = _RiskType.diabetes)),
-                    _chip('Heart disease only', type == _RiskType.heart,
-                        () => update(() => type = _RiskType.heart)),
-                  ]),
-                  const SizedBox(height: 18),
-                  const Text('Risk score',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    _chip('All scores', level == RiskLevelFilter.all,
-                        () => update(() => level = RiskLevelFilter.all)),
-                    _chip('Low risk', level == RiskLevelFilter.low,
-                        () => update(() => level = RiskLevelFilter.low)),
-                    _chip('Moderate risk', level == RiskLevelFilter.moderate,
-                        () => update(() => level = RiskLevelFilter.moderate)),
-                    _chip('High risk', level == RiskLevelFilter.high,
-                        () => update(() => level = RiskLevelFilter.high)),
-                  ]),
-                  const SizedBox(height: 18),
-                  const Text('Sort order',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  RadioListTile<_Order>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Most recent first'),
-                    value: _Order.latest,
-                    groupValue: order,
-                    onChanged: (value) => update(() => order = value!),
-                  ),
-                  RadioListTile<_Order>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Oldest first'),
-                    value: _Order.oldest,
-                    groupValue: order,
-                    onChanged: (value) => update(() => order = value!),
-                  ),
-                  Row(children: [
-                    TextButton(
-                      onPressed: () => update(() {
-                        type = _RiskType.all;
-                        level = RiskLevelFilter.all;
-                        order = _Order.latest;
-                      }),
-                      child: const Text('Restore defaults'),
-                    ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: () {
-                        setState(() {
-                          _type = type;
-                          _level = level;
-                          _order = order;
-                        });
-                        Navigator.pop(dialogContext);
-                      },
-                      child: const Text('Apply'),
-                    ),
-                  ]),
-                ],
+        builder: (context, update) => AppFormDialog(
+          icon: Icons.filter_list_rounded,
+          title: const Text('Filter Predictions'),
+          actions: [
+            TextButton(
+                onPressed: () => update(() {
+                      type = _RiskType.all;
+                      level = RiskLevelFilter.all;
+                      order = _Order.latest;
+                    }),
+                child: const Text('Restore Defaults')),
+            FilledButton(
+                onPressed: () {
+                  setState(() {
+                    _type = type;
+                    _level = level;
+                    _order = order;
+                  });
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Apply')),
+          ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Choose a model, risk level and sort order.',
+                  style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 12),
+              const Text('Risk analysis',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                _chip('All analyses', type == _RiskType.all,
+                    () => update(() => type = _RiskType.all)),
+                _chip('Diabetes only', type == _RiskType.diabetes,
+                    () => update(() => type = _RiskType.diabetes)),
+                _chip('Heart disease only', type == _RiskType.heart,
+                    () => update(() => type = _RiskType.heart)),
+              ]),
+              const SizedBox(height: 18),
+              const Text('Risk score',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                _chip('All scores', level == RiskLevelFilter.all,
+                    () => update(() => level = RiskLevelFilter.all)),
+                _chip('Low risk', level == RiskLevelFilter.low,
+                    () => update(() => level = RiskLevelFilter.low)),
+                _chip('Moderate risk', level == RiskLevelFilter.moderate,
+                    () => update(() => level = RiskLevelFilter.moderate)),
+                _chip('High risk', level == RiskLevelFilter.high,
+                    () => update(() => level = RiskLevelFilter.high)),
+              ]),
+              const SizedBox(height: 18),
+              const Text('Sort order',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              RadioListTile<_Order>(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Most recent first'),
+                value: _Order.latest,
+                groupValue: order,
+                onChanged: (value) => update(() => order = value!),
               ),
-            ),
+              RadioListTile<_Order>(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Oldest first'),
+                value: _Order.oldest,
+                groupValue: order,
+                onChanged: (value) => update(() => order = value!),
+              ),
+            ],
           ),
         ),
       ),
@@ -264,109 +248,108 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: const MedAppBar(
-            title: 'Prediction History', showSecureBadge: false),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(snapshot.error.toString(), textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                      onPressed: _refresh, child: const Text('Try again')),
-                ]),
-              );
-            }
-            final all = snapshot.data ?? const <Map<String, dynamic>>[];
-            final shown = _filtered(all);
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _RiskTrendCard(predictions: all),
-                  const SizedBox(height: 20),
-                  SectionHeader(
-                    title: 'All Predictions',
-                    actionLabel: 'Filter',
-                    onAction: _showFilters,
-                  ),
-                  const SizedBox(height: 12),
-                  if (shown.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 36),
-                      child: Center(
-                        child:
-                            Text('No predictions match the selected filters.'),
-                      ),
-                    )
-                  else
-                    ...shown.map((prediction) {
-                      final score = _score(prediction);
-                      final level = score == null
-                          ? _levelLabel(prediction)
-                          : score < .35
-                              ? 'Low Risk'
-                              : score < .65
-                                  ? 'Moderate Risk'
-                                  : 'High Risk';
-                      return _HistoryCard(
-                        condition: _condition(prediction),
-                        date: DateFormat('MMM d, yyyy • HH:mm')
-                            .format(_date(prediction)),
-                        score: score,
-                        level: level,
-                        color: _color(level),
-                        reportBusy:
-                            _openingReportId == prediction['id']?.toString(),
-                        onReport: prediction['id'] == null ||
-                                _openingReportId != null
-                            ? null
-                            : () => _openReport(prediction['id'].toString()),
-                        onTap: score == null
-                            ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PredictionResultScreen(
-                                      condition: _condition(prediction)
-                                          .replaceAll(' Risk', ''),
-                                      riskScore: score,
-                                      predictionId:
-                                          prediction['id']?.toString(),
-                                      reportOpener: widget.reportOpener,
-                                      riskClassification:
-                                          prediction['risk_classification']
-                                              ?.toString(),
-                                      interpretation:
-                                          prediction['interpretation']
-                                              ?.toString(),
-                                      contributingFactors: (prediction[
-                                                      'contributing_factors']
-                                                  as List? ??
-                                              const [])
-                                          .whereType<Map>()
-                                          .map((item) =>
-                                              Map<String, dynamic>.from(item))
-                                          .toList(),
-                                    ),
+      backgroundColor: AppColors.background,
+      appBar:
+          const MedAppBar(title: 'Prediction History', showSecureBadge: false),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                    onPressed: _refresh, child: const Text('Try again')),
+              ]),
+            );
+          }
+          final all = snapshot.data ?? const <Map<String, dynamic>>[];
+          final shown = _filtered(all);
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              children: [
+                _RiskTrendCard(predictions: all),
+                const SizedBox(height: 20),
+                SectionHeader(
+                  title: 'All Predictions',
+                  actionLabel: 'Filter',
+                  onAction: _showFilters,
+                ),
+                const SizedBox(height: 12),
+                if (shown.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 36),
+                    child: Center(
+                      child: Text('No predictions match the selected filters.'),
+                    ),
+                  )
+                else
+                  ...shown.map((prediction) {
+                    final score = _score(prediction);
+                    final level = score == null
+                        ? _levelLabel(prediction)
+                        : score < .35
+                            ? 'Low Risk'
+                            : score < .65
+                                ? 'Moderate Risk'
+                                : 'High Risk';
+                    return _HistoryCard(
+                      condition: _condition(prediction),
+                      date: DateFormat('MMM d, yyyy • HH:mm')
+                          .format(_date(prediction)),
+                      score: score,
+                      level: level,
+                      color: _color(level),
+                      reportBusy:
+                          _openingReportId == prediction['id']?.toString(),
+                      onReport:
+                          prediction['id'] == null || _openingReportId != null
+                              ? null
+                              : () => _openReport(prediction['id'].toString()),
+                      onTap: score == null
+                          ? null
+                          : () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PredictionResultScreen(
+                                    condition: _condition(prediction)
+                                        .replaceAll(' Risk', ''),
+                                    riskScore: score,
+                                    predictionId: prediction['id']?.toString(),
+                                    reportOpener: widget.reportOpener,
+                                    riskClassification:
+                                        prediction['risk_classification']
+                                            ?.toString(),
+                                    interpretation: prediction['interpretation']
+                                        ?.toString(),
+                                    evidenceNote:
+                                        prediction['explanation']?.toString(),
+                                    contributingFactors:
+                                        (prediction['contributing_factors']
+                                                    as List? ??
+                                                const [])
+                                            .whereType<Map>()
+                                            .map((item) =>
+                                                Map<String, dynamic>.from(item))
+                                            .toList(),
                                   ),
                                 ),
-                      );
-                    }),
-                ],
-              ),
-            );
-          },
-        ),
-      );
+                              ),
+                    );
+                  }),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -523,76 +506,73 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.cardWhite,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.cardWhite,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              condition.contains('Heart')
+                  ? Icons.favorite_outline_rounded
+                  : Icons.water_drop_outlined,
+              color: color,
+              size: 22,
+            ),
           ),
-          child: Row(children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                condition.contains('Heart')
-                    ? Icons.favorite_outline_rounded
-                    : Icons.water_drop_outlined,
-                color: color,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(condition,
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary)),
-                    const SizedBox(height: 2),
-                    Text(date,
-                        style: TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                  ]),
-            ),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(score == null ? '—' : '${(score! * 100).round()}%',
+          const SizedBox(width: 14),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(condition,
                   style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700, color: color)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8)),
-                child: Text(level,
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
-              ),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+              const SizedBox(height: 2),
+              Text(date,
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ]),
-            const SizedBox(width: 8),
-            IconButton(
-              tooltip: 'Open PDF report',
-              onPressed: onReport,
-              icon: reportBusy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_outlined),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(score == null ? '—' : '${(score! * 100).round()}%',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w700, color: color)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(level,
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600, color: color)),
             ),
           ]),
-        ),
-      );
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Open PDF report',
+            onPressed: onReport,
+            icon: reportBusy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.picture_as_pdf_outlined),
+          ),
+        ]),
+      ),
+    );
   }
 }

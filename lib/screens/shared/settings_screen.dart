@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:medguide/screens/auth/login_screen.dart';
 import 'package:medguide/screens/shared/change_password_dialog.dart';
+import 'package:medguide/screens/shared/health_conditions_dialog.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/services/app_preferences.dart';
+import 'package:medguide/services/recorded_conditions.dart';
 import 'package:medguide/services/vital_sync.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
@@ -63,6 +65,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _updateHealthConditions() async {
+    try {
+      final profile = Map<String, dynamic>.from(
+          await ApiClient.instance.get('/health/profile') as Map);
+      if (!mounted) return;
+      final updated = await showDialog<RecordedConditions>(
+        context: context,
+        builder: (_) => HealthConditionsDialog(
+          initial: RecordedConditions.fromText(
+              profile['existing_conditions']?.toString()),
+        ),
+      );
+      if (updated == null || !mounted) return;
+      await ApiClient.instance.put('/health/profile', data: {
+        'existing_conditions': updated.toProfileText(),
+      });
+      if (!mounted) return;
+    } catch (error) {
+      await _error(error);
+    }
+  }
+
   Future<void> _revoke(Map<String, dynamic> row) async {
     final approved = await showDialog<bool>(
         context: context,
@@ -110,7 +134,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppColors.heroStart, AppColors.heroEnd]),
+              gradient: LinearGradient(
+                  colors: [AppColors.heroStart, AppColors.heroEnd]),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(children: [
@@ -118,25 +143,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 radius: 26,
                 backgroundColor: Colors.white.withValues(alpha: .18),
                 child: Text(name.isEmpty ? 'C' : name[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700)),
               ),
               const SizedBox(width: 14),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title.isEmpty ? name : '$title $name',
-                    style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                const Text('Connected to your care profile',
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
-              ])),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(title.isEmpty ? name : '$title $name',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 3),
+                    const Text('Connected to your care profile',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ])),
             ]),
           ),
-          if (specialization.isNotEmpty) _settingsDetail(Icons.biotech_outlined, 'Specialization', specialization),
-          if (institution.isNotEmpty) _settingsDetail(Icons.local_hospital_outlined, 'Institution', institution),
-          if (id.isNotEmpty) _settingsDetail(Icons.badge_outlined, 'RiskSense Clinician ID', id),
+          if (specialization.isNotEmpty)
+            _settingsDetail(
+                Icons.biotech_outlined, 'Specialization', specialization),
+          if (institution.isNotEmpty)
+            _settingsDetail(
+                Icons.local_hospital_outlined, 'Institution', institution),
+          if (id.isNotEmpty)
+            _settingsDetail(Icons.badge_outlined, 'RiskSense Clinician ID', id),
           _settingsNote(Icons.shield_outlined,
               'This link allows your approved clinician to view permitted patient information. Access is checked by the backend for each protected request.'),
         ],
-        disclaimer: 'If this clinician does not look familiar, contact RiskSense AI support. A link does not replace direct clinical care.',
+        disclaimer:
+            'If this clinician does not look familiar, contact RiskSense AI support. A link does not replace direct clinical care.',
       );
     } on ApiException catch (error) {
       if (error.statusCode == 404) {
@@ -149,7 +189,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _settingsNote(Icons.info_outline_rounded,
                 'A clinician relationship is established through the approved access activation flow. If you expected a link, check your account activation or contact support.'),
           ],
-          disclaimer: 'Clinicians cannot view your patient record without an authorized link.',
+          disclaimer:
+              'Clinicians cannot view your patient record without an authorized link.',
         );
       } else {
         await _error(error);
@@ -168,46 +209,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Row(children: [
           Icon(icon, color: AppColors.teal, size: 23),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-            const SizedBox(height: 3),
-            Text(value, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(label,
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11)),
+                const SizedBox(height: 3),
+                Text(value,
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600)),
+              ])),
         ]),
       );
 
   Widget _settingsNote(IconData icon, String text) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.surfaceTeal,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.teal.withValues(alpha: .25)),
-    ),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, color: AppColors.teal, size: 22),
-      const SizedBox(width: 11),
-      Expanded(child: Text(text, style: TextStyle(color: AppColors.textPrimary, height: 1.4, fontSize: 12))),
-    ]),
-  );
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceTeal,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.teal.withValues(alpha: .25)),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: AppColors.teal, size: 22),
+          const SizedBox(width: 11),
+          Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      height: 1.4,
+                      fontSize: 12))),
+        ]),
+      );
 
   Future<void> _showAbout() => _showSettingsInfo(
-    title: 'About RiskSense AI',
-    icon: Icons.info_outline_rounded,
-    intro: 'A health decision-support companion built around risk awareness, useful habits and clinician-linked access.',
-    sections: [
-      _settingsDetail(Icons.favorite_outline_rounded, 'Risk analysis',
-          'Diabetes and heart disease models estimate risk from recorded health measurements. Results include contributing factors and a history you can review.'),
-      _settingsDetail(Icons.monitor_heart_outlined, 'Health information',
-          'Record measurements and view trends over time. Nutrition, activity and mindfulness features help you track everyday habits.'),
-      _settingsDetail(Icons.medication_outlined, 'Drug Assistant',
-          'Ask about medications and save your medication list. Answers depend on available reviewed evidence and may say when evidence is insufficient.'),
-      _settingsDetail(Icons.verified_user_outlined, 'Your access and privacy',
-          'A verified subscription or staged insurance benefit and an approved clinician link control access. The backend checks permissions for protected information.'),
-      _settingsNote(Icons.lightbulb_outline_rounded,
-          'Keep your measurements current and review results with your linked clinician. You can manage your password, sessions and display preferences here in Settings.'),
-    ],
-    disclaimer: 'RiskSense AI provides estimates for decision support. It does not diagnose disease, guarantee outcomes, or replace professional medical advice, diagnosis or treatment.',
-  );
+        title: 'About RiskSense AI',
+        icon: Icons.info_outline_rounded,
+        intro:
+            'A health decision-support companion built around risk awareness, useful habits and clinician-linked access.',
+        sections: [
+          _settingsDetail(Icons.favorite_outline_rounded, 'Risk analysis',
+              'Diabetes and heart disease models estimate risk from recorded health measurements. Results include contributing factors and a history you can review.'),
+          _settingsDetail(Icons.monitor_heart_outlined, 'Health information',
+              'Record measurements and view trends over time. Nutrition, activity and mindfulness features help you track everyday habits.'),
+          _settingsDetail(Icons.medication_outlined, 'Drug Assistant',
+              'Ask about medications and save your medication list. Answers depend on available reviewed evidence and may say when evidence is insufficient.'),
+          _settingsDetail(
+              Icons.verified_user_outlined,
+              'Your access and privacy',
+              'A verified subscription or staged insurance benefit and an approved clinician link control access. The backend checks permissions for protected information.'),
+          _settingsNote(Icons.lightbulb_outline_rounded,
+              'Keep your measurements current and review results with your linked clinician. You can manage your password, sessions and display preferences here in Settings.'),
+        ],
+        disclaimer:
+            'RiskSense AI provides estimates for decision support. It does not diagnose disease, guarantee outcomes, or replace professional medical advice, diagnosis or treatment.',
+      );
+
+  Future<void> _showLegalPrivacy() => _showSettingsInfo(
+        title: 'Legal & Privacy',
+        icon: Icons.gavel_rounded,
+        intro: 'How this academic prototype uses your information and what its '
+            'health features can and cannot tell you.',
+        sections: [
+          _settingsDetail(
+              Icons.storage_outlined,
+              'Information you provide',
+              'Your account, reported conditions, medication list, measurements, '
+                  'laboratory entries, wellness logs and analysis history are saved to '
+                  'support the features you use. Enter only accurate information that '
+                  'you are comfortable recording.'),
+          _settingsDetail(
+              Icons.medical_information_outlined,
+              'Patient-reported diagnoses',
+              'The conditions you set in Settings are self-reported. RiskSense AI '
+                  'does not verify them or diagnose a condition. A recorded diagnosis '
+                  'shows a health-trends option beside the relevant analysis.'),
+          _settingsDetail(
+              Icons.people_outline_rounded,
+              'Clinician access',
+              'An approved clinician must be actively linked to your account to '
+                  'access permitted patient information. The backend checks that '
+                  'relationship and your access entitlement for protected requests.'),
+          _settingsDetail(
+              Icons.security_rounded,
+              'Account security',
+              'Use a private password and sign out on shared devices. You can change '
+                  'your password and review or revoke other sessions in Settings. '
+                  'Sensitive account actions are recorded in audit logs.'),
+          _settingsDetail(
+              Icons.analytics_outlined,
+              'Analysis and reports',
+              'Risk scores and feature contributions are model estimates. Trend '
+                  'reports summarize recorded measurements; they do not identify the '
+                  'clinical cause of a change or establish that a disease is worsening.'),
+          _settingsDetail(
+              Icons.credit_card_off_outlined,
+              'Access demonstrations',
+              'Subscription payment and insurance verification are staged '
+                  'demonstrations in this prototype. No real insurer verifies coverage '
+                  'and the demo checkout does not process a real card payment.'),
+          _settingsNote(
+              Icons.open_in_new_rounded,
+              'The full Privacy Notice and Terms of Service are available on the '
+              'RiskSense AI website. Contact support if you need help understanding '
+              'your account or the information shown here.'),
+        ],
+        disclaimer: 'RiskSense AI is for decision support and does not replace '
+            'professional medical advice, diagnosis, treatment or emergency care.',
+      );
 
   Future<void> _showSettingsInfo({
     required String title,
@@ -224,51 +335,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: AppColors.cardWhite,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 460, maxHeight: MediaQuery.sizeOf(dialog).height * .82),
+          constraints: BoxConstraints(
+              maxWidth: 460, maxHeight: MediaQuery.sizeOf(dialog).height * .82),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [AppColors.heroStart, AppColors.heroEnd]),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                gradient: LinearGradient(
+                    colors: [AppColors.heroStart, AppColors.heroEnd]),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Row(children: [
                 Icon(icon, color: Colors.white, size: 28),
                 const SizedBox(width: 12),
-                Expanded(child: Text(title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 19))),
-                IconButton(tooltip: 'Close', onPressed: () => Navigator.pop(dialog),
+                Expanded(
+                    child: Text(title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 19))),
+                IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(dialog),
                     icon: const Icon(Icons.close_rounded, color: Colors.white)),
               ]),
             ),
-            Flexible(child: SingleChildScrollView(
+            Flexible(
+                child: SingleChildScrollView(
               padding: const EdgeInsets.all(18),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(intro, style: TextStyle(color: AppColors.textSecondary, height: 1.45)),
-                const SizedBox(height: 18),
-                for (final section in sections) ...[section, const SizedBox(height: 10)],
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.amber.withValues(alpha: .11),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.amber.withValues(alpha: .35)),
-                  ),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 21),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(disclaimer,
-                        style: TextStyle(color: AppColors.textPrimary, height: 1.4, fontSize: 12))),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(intro,
+                        style: TextStyle(
+                            color: AppColors.textSecondary, height: 1.45)),
+                    const SizedBox(height: 18),
+                    for (final section in sections) ...[
+                      section,
+                      const SizedBox(height: 10)
+                    ],
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.amber.withValues(alpha: .11),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: AppColors.amber.withValues(alpha: .35)),
+                      ),
+                      child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded,
+                                color: AppColors.amber, size: 21),
+                            const SizedBox(width: 10),
+                            Expanded(
+                                child: Text(disclaimer,
+                                    style: TextStyle(
+                                        color: AppColors.textPrimary,
+                                        height: 1.4,
+                                        fontSize: 12))),
+                          ]),
+                    ),
                   ]),
-                ),
-              ]),
             )),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-              child: SizedBox(width: double.infinity, child: FilledButton(
-                onPressed: () => Navigator.pop(dialog), child: const Text('Done'))),
+              child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: () => Navigator.pop(dialog),
+                      child: const Text('Done'))),
             ),
           ]),
         ),
@@ -305,94 +444,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return AnimatedBuilder(
-      animation: AppPreferences.instance,
-      builder: (context, _) => Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: const MedAppBar(
-                title: 'Settings',
-                showBack: true,
-                showSecureBadge: false,
-                helpTopic: 'Settings'),
-            body: ListView(padding: const EdgeInsets.all(20), children: [
-              Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                          colors: [AppColors.heroStart, AppColors.heroEnd]),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: const Row(children: [
-                    Icon(Icons.tune_rounded, color: Colors.white, size: 30),
-                    SizedBox(width: 14),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text('Your Settings',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w700)),
-                          Text('Manage your account and app experience',
-                              style: TextStyle(
-                                  color: Colors.white70, fontSize: 12)),
-                        ]))
-                  ])),
-              _heading('Account & Security'),
-              _tile(Icons.lock_outline_rounded, 'Change Password',
-                  'Verify your current password to update it', _changePassword),
-              _sessionsCard(),
-              if (widget.role == 'patient') ...[
-                _heading('Health & Privacy'),
-                _highlightTile(Icons.person_search_rounded, 'Linked Clinician',
-                    'See your connected clinician and how access works', _showClinician, AppColors.teal),
-                _tile(
-                    Icons.watch_rounded,
-                    'Incoming Wearable Vitals',
-                    VitalSync.instance.listening
-                        ? 'Listening for new readings'
-                        : 'Not listening',
-                    () => showWearableSyncDialog(context)),
-                _heading('Notifications'),
+        animation: AppPreferences.instance,
+        builder: (context, _) => Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: const MedAppBar(
+                  title: 'Settings',
+                  showBack: true,
+                  showSecureBadge: false,
+                  helpTopic: 'Settings'),
+              body: ListView(padding: const EdgeInsets.all(20), children: [
+                Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                            colors: [AppColors.heroStart, AppColors.heroEnd]),
+                        borderRadius: BorderRadius.circular(20)),
+                    child: const Row(children: [
+                      Icon(Icons.tune_rounded, color: Colors.white, size: 30),
+                      SizedBox(width: 14),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text('Your Settings',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w700)),
+                            Text('Manage your account and app experience',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 12)),
+                          ]))
+                    ])),
+                _heading('Account & Security'),
+                if (widget.role == 'patient')
+                  _highlightTile(
+                      Icons.medical_information_outlined,
+                      'Update Health Conditions',
+                      'Record diagnosed diabetes, heart disease or another chronic condition',
+                      _updateHealthConditions,
+                      AppColors.teal),
+                _highlightTile(
+                    Icons.lock_outline_rounded,
+                    'Change Password',
+                    'Verify your current password to update it',
+                    _changePassword,
+                    AppColors.teal),
+                _sessionsCard(),
+                if (widget.role == 'patient') ...[
+                  _heading('Health & Privacy'),
+                  _highlightTile(
+                      Icons.person_search_rounded,
+                      'Linked Clinician',
+                      'See your connected clinician and how access works',
+                      _showClinician,
+                      AppColors.teal),
+                  _highlightTile(
+                      Icons.watch_rounded,
+                      'Incoming Wearable Vitals',
+                      VitalSync.instance.listening
+                          ? 'Listening for new readings'
+                          : 'Not listening',
+                      () => showWearableSyncDialog(context),
+                      AppColors.teal),
+                  _heading('Notifications'),
+                  _switch(
+                      Icons.notifications_active_outlined,
+                      'Risk Result Alerts',
+                      'Show high and moderate result badges on your dashboard',
+                      AppPreferences.instance.riskAlerts,
+                      AppPreferences.instance.setRiskAlerts),
+                ],
+                _heading('Display'),
                 _switch(
-                    Icons.notifications_active_outlined,
-                    'Risk Result Alerts',
-                    'Show high and moderate result badges on your dashboard',
-                    AppPreferences.instance.riskAlerts,
-                    AppPreferences.instance.setRiskAlerts),
-              ],
-              _heading('Display'),
-              _switch(
-                  Icons.dark_mode_outlined,
-                  'Dark Mode',
-                  'Use the navy and teal night palette across the app',
-                  AppPreferences.instance.darkMode,
-                  AppPreferences.instance.setDarkMode),
-              _textScale(),
-              _switch(
-                  Icons.motion_photos_off_outlined,
-                  'Reduce Motion',
-                  'Reduce supported in-app animations',
-                  AppPreferences.instance.reduceMotion,
-                  AppPreferences.instance.setReduceMotion),
-              _heading('Help & Information'),
-              _highlightTile(
-                  Icons.info_outline_rounded,
-                  'About RiskSense AI',
-                  'Explore features, access, privacy and clinical limits',
-                  _showAbout, AppColors.primaryBlue),
-              _tile(Icons.email_outlined, 'Contact Developer',
-                  'Open your email app with the support address', _contact),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                  onPressed: _signOut,
-                  icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Sign Out'),
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: BorderSide(color: AppColors.danger))),
-              const SizedBox(height: 24),
-            ]),
-          ));
+                    Icons.dark_mode_outlined,
+                    'Dark Mode',
+                    'Use the navy and teal night palette across the app',
+                    AppPreferences.instance.darkMode,
+                    AppPreferences.instance.setDarkMode),
+                _textScale(),
+                _switch(
+                    Icons.motion_photos_off_outlined,
+                    'Reduce Motion',
+                    'Reduce supported in-app animations',
+                    AppPreferences.instance.reduceMotion,
+                    AppPreferences.instance.setReduceMotion),
+                _heading('Help & Information'),
+                _highlightTile(
+                    Icons.gavel_rounded,
+                    'Legal & Privacy',
+                    'Understand health data, clinician access and clinical limits',
+                    _showLegalPrivacy,
+                    AppColors.teal),
+                _highlightTile(
+                    Icons.info_outline_rounded,
+                    'About RiskSense AI',
+                    'Explore features, access, privacy and clinical limits',
+                    _showAbout,
+                    AppColors.primaryBlue),
+                _tile(Icons.email_outlined, 'Contact Developer',
+                    'Open your email app with the support address', _contact),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                    onPressed: _signOut,
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text('Sign Out'),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: BorderSide(color: AppColors.danger))),
+                const SizedBox(height: 24),
+              ]),
+            ));
   }
 
   Widget _heading(String title) => Padding(
@@ -405,15 +567,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _tile(
           IconData icon, String title, String subtitle, VoidCallback onTap) =>
-      Card(
-          margin: const EdgeInsets.only(bottom: 9),
-          child: ListTile(
-              leading: Icon(icon, color: AppColors.teal),
-              title: Text(title,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: onTap));
+      _highlightTile(icon, title, subtitle, onTap, AppColors.teal);
 
   Widget _highlightTile(IconData icon, String title, String subtitle,
           VoidCallback onTap, Color accent) =>
@@ -431,7 +585,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(14),
             child: Row(children: [
               Container(
-                width: 44, height: 44,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: .13),
                   borderRadius: BorderRadius.circular(13),
@@ -439,11 +594,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Icon(icon, color: accent, size: 23),
               ),
               const SizedBox(width: 13),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                Text(subtitle, style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.3)),
-              ])),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 3),
+                    Text(subtitle,
+                        style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            height: 1.3)),
+                  ])),
               const SizedBox(width: 5),
               Icon(Icons.arrow_forward_ios_rounded, size: 15, color: accent),
             ]),
@@ -453,8 +618,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _switch(IconData icon, String title, String subtitle, bool value,
           Future<void> Function(bool) onChanged) =>
-      Card(
-          margin: const EdgeInsets.only(bottom: 9),
+      Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: AppColors.teal.withValues(alpha: AppColors.dark ? .13 : .07),
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: AppColors.teal.withValues(alpha: .35)),
+          ),
           child: SwitchListTile(
               secondary: Icon(icon, color: AppColors.teal),
               title: Text(title,
@@ -469,8 +639,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
               }));
 
-  Widget _textScale() => Card(
-      margin: const EdgeInsets.only(bottom: 9),
+  Widget _textScale() => Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+          color: AppColors.teal.withValues(alpha: AppColors.dark ? .13 : .07),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: AppColors.teal.withValues(alpha: .35))),
       child: Padding(
           padding: const EdgeInsets.all(16),
           child:
@@ -478,7 +652,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(children: [
               Icon(Icons.text_fields_rounded, color: AppColors.teal),
               const SizedBox(width: 14),
-              const Text('Text Size', style: TextStyle(fontWeight: FontWeight.w600))
+              const Text('Text Size',
+                  style: TextStyle(fontWeight: FontWeight.w600))
             ]),
             const SizedBox(height: 8),
             Wrap(spacing: 8, children: [
@@ -500,8 +675,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ])));
 
-  Widget _sessionsCard() => Card(
-      margin: const EdgeInsets.only(bottom: 9),
+  Widget _sessionsCard() => Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+          color: AppColors.teal.withValues(alpha: AppColors.dark ? .13 : .07),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: AppColors.teal.withValues(alpha: .35))),
       child: Padding(
           padding: const EdgeInsets.all(16),
           child:
