@@ -1,3 +1,5 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
+import 'package:medguide/widgets/app_id_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -75,36 +77,8 @@ class _ClinicianDashboardState extends State<ClinicianDashboard> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
-  Future<void> _showClinicianId(String id) => showDialog<void>(
-      context: context,
-      builder: (dialog) => Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('RiskSense Clinician ID',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 12),
-                    SelectableText(id),
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(dialog),
-                          child: const Text('Back')),
-                      const Spacer(),
-                      FilledButton.icon(
-                          onPressed: () async {
-                            await Clipboard.setData(ClipboardData(text: id));
-                            if (dialog.mounted) Navigator.pop(dialog);
-                          },
-                          icon: const Icon(Icons.copy_rounded),
-                          label: const Text('Copy ID'))
-                    ]),
-                  ]))));
+  Future<void> _showClinicianId(String id) =>
+      showAppIdDialog(context, title: 'RiskSense Clinician ID', id: id);
   @override
   void dispose() {
     _search.dispose();
@@ -115,53 +89,52 @@ class _ClinicianDashboardState extends State<ClinicianDashboard> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Scaffold(
-        body: _tab == 2
-            ? const DataInputScreen(clinicianMode: true)
-            : FutureBuilder<List<Map<String, dynamic>>>(
-                future: _data,
-                builder: (context, state) {
-                  if (state.hasError && _lastData == null)
-                    return Center(
-                        child:
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('Unable to load clinician data: ${state.error}',
-                          textAlign: TextAlign.center),
-                      TextButton(
-                          onPressed: () => setState(_reload),
-                          child: const Text('Retry'))
-                    ]));
-                  if (!state.hasData && _lastData == null)
-                    return const Center(child: CircularProgressIndicator());
-                  final rows = state.data ?? _lastData!;
-                  final dashboard = rows[0], profile = rows[1];
-                  return switch (_tab) {
-                    0 => _dashboard(dashboard, profile),
-                    1 => _patients(dashboard),
-                    _ => _profile(profile),
-                  };
-                }),
-        bottomNavigationBar: AnimatedBuilder(
-          animation: AppPreferences.instance,
-          builder: (context, _) => BottomNavigationBar(
-            currentIndex: _tab,
-            onTap: _navigate,
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppColors.primaryBlue,
-            unselectedItemColor: AppColors.textLight,
-            backgroundColor: AppColors.cardWhite,
-            items: const [
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.people_outline_rounded), label: 'Patients'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.analytics_outlined), label: 'Analysis'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
-            ],
-          ),
+      body: _tab == 2
+          ? const DataInputScreen(clinicianMode: true)
+          : FutureBuilder<List<Map<String, dynamic>>>(
+              future: _data,
+              builder: (context, state) {
+                if (state.hasError && _lastData == null)
+                  return Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('Unable to load clinician data: ${state.error}',
+                        textAlign: TextAlign.center),
+                    TextButton(
+                        onPressed: () => setState(_reload),
+                        child: const Text('Retry'))
+                  ]));
+                if (!state.hasData && _lastData == null)
+                  return const Center(child: CircularProgressIndicator());
+                final rows = state.data ?? _lastData!;
+                final dashboard = rows[0], profile = rows[1];
+                return switch (_tab) {
+                  0 => _dashboard(dashboard, profile),
+                  1 => _patients(dashboard),
+                  _ => _profile(profile),
+                };
+              }),
+      bottomNavigationBar: AnimatedBuilder(
+        animation: AppPreferences.instance,
+        builder: (context, _) => BottomNavigationBar(
+          currentIndex: _tab,
+          onTap: _navigate,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.primaryBlue,
+          unselectedItemColor: AppColors.textLight,
+          backgroundColor: AppColors.cardWhite,
+          items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.people_outline_rounded), label: 'Patients'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.analytics_outlined), label: 'Analysis'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _dashboard(Map<String, dynamic> data, Map<String, dynamic> profile) {
@@ -186,6 +159,8 @@ class _ClinicianDashboardState extends State<ClinicianDashboard> {
             Text(DateFormat.yMMMMEEEEd().format(DateTime.now()),
                 style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 20),
+            const SectionHeader(title: 'Quick Stats'),
+            const SizedBox(height: 12),
             GridView(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -197,16 +172,19 @@ class _ClinicianDashboardState extends State<ClinicianDashboard> {
               children: [
                 StatCard(
                     title: 'High Risk Alerts',
+                    subtitle: 'Linked patients',
                     value: '${data['high_risk_alerts'] ?? 0}',
                     icon: Icons.warning_amber_rounded,
                     color: AppColors.danger),
                 StatCard(
                     title: 'Total Patients',
+                    subtitle: 'Linked to you',
                     value: '${data['total_patients'] ?? 0}',
                     icon: Icons.people_rounded,
                     color: AppColors.primaryBlue),
                 StatCard(
                     title: 'Predictions Today',
+                    subtitle: 'New analyses',
                     value: '${data['predictions_today'] ?? 0}',
                     icon: Icons.analytics_rounded,
                     color: AppColors.teal),
@@ -288,66 +266,57 @@ class _ClinicianDashboardState extends State<ClinicianDashboard> {
 
   Future<void> _showFilters() async {
     var selected = _filter, ordering = _sort;
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheet) => StatefulBuilder(
-          builder: (context, update) => SafeArea(
-                child: Padding(
-                    padding: const EdgeInsets.all(22),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Filter patients',
-                            style: Theme.of(context).textTheme.headlineSmall),
-                        const SizedBox(height: 14),
-                        Wrap(spacing: 8, runSpacing: 5, children: [
-                          for (final option in _filters)
-                            ChoiceChip(
-                                label: Text(option),
-                                selected: selected == option,
-                                onSelected: (_) =>
-                                    update(() => selected = option)),
-                        ]),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                            initialValue: ordering,
-                            decoration:
-                                const InputDecoration(labelText: 'Sort order'),
-                            items: [
-                              for (final value in _sorts)
-                                DropdownMenuItem(
-                                    value: value, child: Text(value))
-                            ],
-                            onChanged: (value) =>
-                                update(() => ordering = value!)),
-                        const SizedBox(height: 18),
-                        Row(children: [
-                          TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _filter = _filters.first;
-                                  _sort = _sorts.first;
-                                });
-                                Navigator.pop(sheet);
-                              },
-                              child: const Text('Reset')),
-                          const Spacer(),
-                          FilledButton(
-                              onPressed: () {
-                                setState(() {
-                                  _filter = selected;
-                                  _sort = ordering;
-                                });
-                                Navigator.pop(sheet);
-                              },
-                              child: const Text('Apply filters')),
-                        ]),
-                      ],
-                    )),
+      builder: (dialog) => StatefulBuilder(
+          builder: (context, update) => AppFormDialog(
+                icon: Icons.tune_rounded,
+                title: const Text('Filter Patients'),
+                content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(spacing: 8, runSpacing: 5, children: [
+                        for (final option in _filters)
+                          ChoiceChip(
+                              label: Text(option),
+                              selected: selected == option,
+                              onSelected: (_) =>
+                                  update(() => selected = option)),
+                      ]),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                          initialValue: ordering,
+                          decoration:
+                              const InputDecoration(labelText: 'Sort order'),
+                          items: [
+                            for (final value in _sorts)
+                              DropdownMenuItem(value: value, child: Text(value))
+                          ],
+                          onChanged: (value) =>
+                              update(() => ordering = value!)),
+                      const SizedBox(height: 8),
+                    ]),
+                actions: [
+                  TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _filter = _filters.first;
+                          _sort = _sorts.first;
+                        });
+                        Navigator.pop(dialog);
+                      },
+                      child: const Text('Reset')),
+                  FilledButton(
+                      onPressed: () {
+                        setState(() {
+                          _filter = selected;
+                          _sort = ordering;
+                        });
+                        Navigator.pop(dialog);
+                      },
+                      child: const Text('Apply filters')),
+                ],
               )),
     );
   }
@@ -581,9 +550,9 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Text(message,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary)));
+        padding: const EdgeInsets.all(20),
+        child: Text(message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary)));
   }
 }

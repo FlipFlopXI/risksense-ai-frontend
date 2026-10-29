@@ -6,7 +6,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
-  ApiException(this.message, {this.statusCode});
+  final String? code;
+  ApiException(this.message, {this.statusCode, this.code});
   @override
   String toString() => message;
 }
@@ -83,7 +84,7 @@ class ApiClient {
       return user;
     } on DioException catch (error) {
       throw ApiException(_message(error),
-          statusCode: error.response?.statusCode);
+          statusCode: error.response?.statusCode, code: _errorCode(error));
     }
   }
 
@@ -270,6 +271,12 @@ class ApiClient {
     }
     await _storage.write(key: _accessKey, value: _accessToken);
     await _storage.write(key: _refreshKey, value: _refreshToken);
+  }
+
+  String? _errorCode(DioException error) {
+    final data = error.response?.data;
+    if (data is! Map || data['detail'] is! Map) return null;
+    return (data['detail'] as Map)['code']?.toString();
   }
 
   String _message(DioException error) {

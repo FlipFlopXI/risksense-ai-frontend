@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_id_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -31,40 +32,8 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
-  Future<void> _showAdminId(String id) => showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Admin ID',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 8),
-                    SelectableText(id,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text('Back')),
-                      const Spacer(),
-                      FilledButton.icon(
-                          onPressed: () async {
-                            await Clipboard.setData(ClipboardData(text: id));
-                            if (dialogContext.mounted)
-                              Navigator.pop(dialogContext);
-                          },
-                          icon: const Icon(Icons.copy_rounded),
-                          label: const Text('Copy ID')),
-                    ]),
-                  ],
-                )),
-          ));
+  Future<void> _showAdminId(String id) =>
+      showAppIdDialog(context, title: 'Admin ID', id: id);
 
   String _timestamp(dynamic value) {
     final parsed = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
@@ -87,138 +56,144 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return AnimatedBuilder(
-      animation: AppPreferences.instance,
-      builder: (context, _) => Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: MedAppBar(title: 'Admin Profile', actions: [
-              IconButton(
-                  tooltip: 'Settings',
-                  icon: Icon(Icons.settings_outlined,
-                      color: AppColors.primaryBlue),
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const SettingsScreen(role: 'admin'))))
-            ]),
-            body: FutureBuilder<Map<String, dynamic>>(
-                future: _profile,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done)
-                    return const Center(child: CircularProgressIndicator());
-                  if (snapshot.hasError)
-                    return Center(
-                        child: ElevatedButton(
-                            onPressed: () => setState(() => _profile = _load()),
-                            child: const Text('Retry Profile')));
-                  final data = snapshot.data!;
-                  final lastAction = data['last_action'];
-                  return RefreshIndicator(
-                      onRefresh: () async {
-                        final next = _load();
-                        setState(() => _profile = next);
-                        await next;
-                      },
-                      child: ListView(
-                          padding: const EdgeInsets.all(20),
-                          children: [
-                            Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                    gradient: LinearGradient(colors: [
-                                      AppColors.heroStart,
-                                      AppColors.heroEnd
-                                    ]),
-                                    borderRadius: BorderRadius.circular(20)),
-                                child: Row(children: [
-                                  const CircleAvatar(
-                                      radius: 28,
-                                      backgroundColor: Colors.white24,
-                                      child: Icon(
-                                          Icons.admin_panel_settings_rounded,
-                                          color: Colors.white,
-                                          size: 30)),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                      child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                        const Text('System Administrator',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w700)),
-                                        Text(data['email'].toString(),
-                                            style: const TextStyle(
-                                                color: Colors.white70))
-                                      ]))
-                                ])),
-                            const SizedBox(height: 16),
-                            Container(
-                                padding: const EdgeInsets.all(18),
-                                decoration: BoxDecoration(
-                                    color: AppColors.cardWhite,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border:
-                                        Border.all(color: AppColors.border)),
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Account And Activity',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .headlineSmall),
-                                      const Divider(height: 24),
-                                      Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
-                                          child: Row(children: [
-                                            Expanded(
-                                                child: Text('Admin ID',
-                                                    style: TextStyle(
-                                                        color: AppColors
-                                                            .textSecondary))),
-                                            InkWell(
-                                                onTap: () => _showAdminId(
-                                                    data['admin_id']
-                                                        .toString()),
-                                                child: Text('Tap To View ID',
-                                                    style: TextStyle(
-                                                        color: AppColors
-                                                            .primaryBlue,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        decoration:
-                                                            TextDecoration
-                                                                .underline))),
-                                          ])),
-                                      InfoRow(
-                                          label: 'Status',
-                                          value: data['is_active'] == true
-                                              ? 'Active'
-                                              : 'Inactive'),
-                                      InfoRow(
-                                          label: 'Last Login',
-                                          value: _timestamp(
-                                              data['last_login_at'])),
-                                      InfoRow(
-                                          label: 'Last Action',
-                                          value: _action(lastAction)),
-                                      if (lastAction is Map)
+        animation: AppPreferences.instance,
+        builder: (context, _) => Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: MedAppBar(title: 'Admin Profile', actions: [
+                IconButton(
+                    tooltip: 'Settings',
+                    icon: Icon(Icons.settings_outlined,
+                        color: AppColors.primaryBlue),
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const SettingsScreen(role: 'admin'))))
+              ]),
+              body: FutureBuilder<Map<String, dynamic>>(
+                  future: _profile,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done)
+                      return const Center(child: CircularProgressIndicator());
+                    if (snapshot.hasError)
+                      return Center(
+                          child: ElevatedButton(
+                              onPressed: () =>
+                                  setState(() => _profile = _load()),
+                              child: const Text('Retry Profile')));
+                    final data = snapshot.data!;
+                    final lastAction = data['last_action'];
+                    return RefreshIndicator(
+                        onRefresh: () async {
+                          final next = _load();
+                          setState(() => _profile = next);
+                          await next;
+                        },
+                        child: ListView(
+                            padding: const EdgeInsets.all(20),
+                            children: [
+                              Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                      gradient: LinearGradient(colors: [
+                                        AppColors.heroStart,
+                                        AppColors.heroEnd
+                                      ]),
+                                      borderRadius: BorderRadius.circular(20)),
+                                  child: Row(children: [
+                                    const CircleAvatar(
+                                        radius: 28,
+                                        backgroundColor: Colors.white24,
+                                        child: Icon(
+                                            Icons.admin_panel_settings_rounded,
+                                            color: Colors.white,
+                                            size: 30)),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          const Text('System Administrator',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700)),
+                                          Text(data['email'].toString(),
+                                              style: const TextStyle(
+                                                  color: Colors.white70))
+                                        ]))
+                                  ])),
+                              const SizedBox(height: 16),
+                              Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                      color: AppColors.cardWhite,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border:
+                                          Border.all(color: AppColors.border)),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Account And Activity',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineSmall),
+                                        const Divider(height: 24),
+                                        Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 8),
+                                            child: Row(children: [
+                                              Expanded(
+                                                  child: Text('Admin ID',
+                                                      style: TextStyle(
+                                                          color: AppColors
+                                                              .textSecondary))),
+                                              InkWell(
+                                                  onTap: () => _showAdminId(
+                                                      data['admin_id']
+                                                          .toString()),
+                                                  child: Text('Tap To View ID',
+                                                      style: TextStyle(
+                                                          color: AppColors
+                                                              .primaryBlue,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          decoration:
+                                                              TextDecoration
+                                                                  .underline,
+                                                          decorationColor: AppColors.primaryBlue,
+                                                          decorationThickness: 2))),
+                                            ])),
                                         InfoRow(
-                                            label: 'Action Time',
+                                            label: 'Status',
+                                            value: data['is_active'] == true
+                                                ? 'Active'
+                                                : 'Inactive'),
+                                        InfoRow(
+                                            label: 'Last Login',
                                             value: _timestamp(
-                                                lastAction['performed_at'])),
-                                    ])),
-                            const SizedBox(height: 24),
-                            OutlinedButton.icon(
-                                onPressed: _signOut,
-                                icon: const Icon(Icons.logout_rounded),
-                                label: const Text('Sign Out'),
-                                style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.danger,
-                                    side: BorderSide(color: AppColors.danger))),
-                          ]));
-                }),
-          ));
+                                                data['last_login_at'])),
+                                        InfoRow(
+                                            label: 'Last Action',
+                                            value: _action(lastAction)),
+                                        if (lastAction is Map)
+                                          InfoRow(
+                                              label: 'Action Time',
+                                              value: _timestamp(
+                                                  lastAction['performed_at'])),
+                                      ])),
+                              const SizedBox(height: 24),
+                              OutlinedButton.icon(
+                                  onPressed: _signOut,
+                                  icon: const Icon(Icons.logout_rounded),
+                                  label: const Text('Sign Out'),
+                                  style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.danger,
+                                      side:
+                                          BorderSide(color: AppColors.danger))),
+                            ]));
+                  }),
+            ));
   }
 }

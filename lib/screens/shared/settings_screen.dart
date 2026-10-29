@@ -1,8 +1,12 @@
+import 'package:medguide/screens/shared/clinician_change_dialog.dart';
+import 'package:medguide/services/developer_contact.dart';
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:medguide/screens/auth/login_screen.dart';
 import 'package:medguide/screens/shared/change_password_dialog.dart';
 import 'package:medguide/screens/shared/health_conditions_dialog.dart';
+import 'package:medguide/screens/shared/risk_alert_settings_dialog.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/services/app_preferences.dart';
 import 'package:medguide/services/recorded_conditions.dart';
@@ -35,9 +39,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     await showDialog<void>(
         context: context,
-        builder: (dialog) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
+        builder: (dialog) => AppFormDialog(
+              icon: Icons.error_outline_rounded,
               title: const Text('Unable To Complete Action'),
               content: Text(error is ApiException
                   ? error.message
@@ -90,9 +93,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _revoke(Map<String, dynamic> row) async {
     final approved = await showDialog<bool>(
         context: context,
-        builder: (dialog) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
+        builder: (dialog) => AppFormDialog(
+              icon: Icons.logout_rounded,
               title: const Text('Sign Out Other Session?'),
               content: const Text('That session will need to sign in again.'),
               actions: [
@@ -299,6 +301,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'your password and review or revoke other sessions in Settings. '
                   'Sensitive account actions are recorded in audit logs.'),
           _settingsDetail(
+              Icons.email_outlined,
+              'Optional risk result emails',
+              'Patients can opt in to emails containing an elevated model score, '
+                  'contributing model factors and comparison with a prior score. '
+                  'This is off by default and can be switched off in Risk Result Alerts. '
+                  'Only enable it for a private email inbox.'),
+          _settingsDetail(
               Icons.analytics_outlined,
               'Analysis and reports',
               'Risk scores and feature contributions are model estimates. Trend '
@@ -416,11 +425,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _contact() async {
-    final uri = Uri(
-        scheme: 'mailto',
-        path: 'shivenreddyxi@gmail.com',
-        queryParameters: {'subject': 'RiskSense AI support'});
-    if (!await launchUrl(uri)) await _error('No email app is available.');
+    if (!await launchDeveloperEmail()) await _error('No email app is available.');
   }
 
   Future<void> _signOut() async {
@@ -500,6 +505,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _showClinician,
                       AppColors.teal),
                   _highlightTile(
+                      Icons.person_add_alt_rounded,
+                      'Request a New Clinician',
+                      'Find an approved clinician and request an admin-reviewed change',
+                      () => showDialog<void>(context: context, builder: (_) => const ClinicianChangeDialog()),
+                      AppColors.teal),
+                  _highlightTile(
                       Icons.watch_rounded,
                       'Incoming Wearable Vitals',
                       VitalSync.instance.listening
@@ -508,12 +519,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       () => showWearableSyncDialog(context),
                       AppColors.teal),
                   _heading('Notifications'),
-                  _switch(
+                  _highlightTile(
                       Icons.notifications_active_outlined,
                       'Risk Result Alerts',
-                      'Show high and moderate result badges on your dashboard',
-                      AppPreferences.instance.riskAlerts,
-                      AppPreferences.instance.setRiskAlerts),
+                      'Choose dashboard badges and elevated-result emails',
+                      () => showDialog<void>(
+                          context: context,
+                          builder: (_) => const RiskAlertSettingsDialog()),
+                      AppColors.teal),
                 ],
                 _heading('Display'),
                 _switch(

@@ -16,5 +16,6 @@ void main() {
     expect(find.text('Overview'), findsOneWidget);
     expect(find.text('Profile'), findsOneWidget);
     expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.menu_rounded), findsNothing);
   });
 }

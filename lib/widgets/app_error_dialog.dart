@@ -1,12 +1,12 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:medguide/theme/app_theme.dart';
 
 Future<void> showAppErrorDialog(BuildContext context, String message,
     {String title = 'Unable To Complete Action'}) => showDialog<void>(
   context: context,
-  builder: (dialog) => AlertDialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    icon:  Icon(Icons.error_outline_rounded, color: AppColors.danger),
+  builder: (dialog) => AppFormDialog(
+    icon: Icons.error_outline_rounded,
     title: Text(title),
     content: Text(message),
     actions: [TextButton(onPressed: () => Navigator.pop(dialog),

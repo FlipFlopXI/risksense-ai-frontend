@@ -1,3 +1,5 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
+import 'package:medguide/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,13 +14,17 @@ class ClinicianPdf {
   }) async {
     final approved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Protect patient information'),
-        content: const Text(
-          'This PDF may contain personal health information protected by South Africa’s POPIA. '
-          'Only generate, store or share it for an authorized clinical purpose. '
-          'Check the recipient and use a secure location before continuing.',
+      builder: (dialogContext) => AppFormDialog(
+        icon: Icons.privacy_tip_outlined,
+        title: const Text('Protect Patient Information'),
+        content: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border)),
+          child: const Text(
+              'This PDF may contain personal health information protected by South Africa’s POPIA. Only generate, store or share it for an authorized clinical purpose. Check the recipient and use a secure location before continuing.'),
         ),
         actions: [
           TextButton(

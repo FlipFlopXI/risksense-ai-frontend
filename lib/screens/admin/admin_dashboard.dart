@@ -1,10 +1,12 @@
+import 'dart:async';
+import 'package:medguide/screens/admin/clinician_change_requests_screen.dart';
+import 'package:medguide/widgets/app_form_dialog.dart';
+import 'package:medguide/services/developer_contact.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/widgets/shared_widgets.dart';
 import 'package:medguide/widgets/screen_help.dart';
-import 'package:medguide/screens/auth/login_screen.dart';
 import 'package:medguide/screens/admin/admin_profile_screen.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/services/app_preferences.dart';
@@ -25,20 +27,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _epochs[index]++;
       });
 
-  Future<void> _signOut() async {
-    await ApiClient.instance.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     Theme.of(context);
     return Scaffold(
-      drawer: _buildDrawer(context),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -102,86 +94,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      backgroundColor: AppColors.cardWhite,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.heroStart, AppColors.heroEnd],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(Icons.admin_panel_settings_rounded,
-                        color: Colors.white, size: 26),
-                  ),
-                  const SizedBox(height: 14),
-                  Text('System Administrator',
-                      style: Theme.of(context).textTheme.headlineSmall),
-                  Text('System Administrator',
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
-                ],
-              ),
-            ),
-            const Divider(),
-            _item(Icons.dashboard_outlined, 'Overview', () {
-              _navigate(0);
-              Navigator.pop(context);
-            }),
-            _item(Icons.manage_accounts_outlined, 'User Management', () {
-              _navigate(1);
-              Navigator.pop(context);
-            }),
-            _item(Icons.receipt_long_outlined, 'Audit Logs', () {
-              _navigate(2);
-              Navigator.pop(context);
-            }),
-            _item(Icons.memory_outlined, 'Model Management', () {
-              _navigate(3);
-              Navigator.pop(context);
-            }),
-            _item(Icons.person_outline_rounded, 'Profile', () {
-              _navigate(4);
-              Navigator.pop(context);
-            }),
-            const Spacer(),
-            const Divider(),
-            _item(Icons.logout_rounded, 'Sign Out', () {
-              Navigator.pop(context);
-              _signOut();
-            }, color: AppColors.danger),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _item(IconData icon, String label, VoidCallback onTap,
-      {Color? color}) {
-    return ListTile(
-      leading: Icon(icon, color: color ?? AppColors.primaryBlue, size: 22),
-      title: Text(label,
-          style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: color ?? AppColors.textPrimary)),
-      onTap: onTap,
-      dense: true,
-    );
-  }
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
@@ -194,6 +107,32 @@ class _OverviewTab extends StatefulWidget {
 }
 
 class _OverviewTabState extends State<_OverviewTab> {
+  int pendingClinicianChanges = 0;
+  Timer? requestTimer;
+  @override
+  void initState() {
+    super.initState();
+    _refreshRequestCount();
+    requestTimer = Timer.periodic(const Duration(seconds: 20), (_) => _refreshRequestCount());
+  }
+  @override
+  void dispose() {
+    requestTimer?.cancel();
+    super.dispose();
+  }
+  Future<void> _refreshRequestCount() async {
+    try {
+      final rows = await ApiClient.instance.get('/admin/clinician-change-requests') as List;
+      if (mounted) setState(() => pendingClinicianChanges = rows.length);
+    } catch (_) {
+      // The overview remains usable during a transient notification fetch failure.
+    }
+  }
+  Future<void> _openRequests() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const ClinicianChangeRequestsScreen()));
+    if (mounted) await _refreshRequestCount();
+  }
   late Future<List<dynamic>> _data = _load();
   Future<List<dynamic>> _load() => Future.wait([
         ApiClient.instance.get('/admin/metrics'),
@@ -213,17 +152,16 @@ class _OverviewTabState extends State<_OverviewTab> {
       appBar: AppBar(
         backgroundColor: AppColors.cardWhite,
         elevation: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: Icon(Icons.menu_rounded, color: AppColors.primaryBlue),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        automaticallyImplyLeading: false,
         title: const Text('Admin Console'),
-        actions: const [
-          SecureBadge(),
-          ScreenHelpButton(topic: 'Admin Console'),
-          SizedBox(width: 8),
+        actions: [
+          const SecureBadge(),
+          IconButton(tooltip: 'Clinician change requests', onPressed: _openRequests,
+            icon: Badge(isLabelVisible: pendingClinicianChanges > 0,
+              label: Text('$pendingClinicianChanges'),
+              child: Icon(Icons.notifications_outlined, color: AppColors.primaryBlue))),
+          const ScreenHelpButton(topic: 'Admin Console'),
+          const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -414,82 +352,54 @@ class _UserManagementTabState extends State<_UserManagementTab> {
 
   Future<void> _filters() async {
     var role = _role, status = _status, oldest = _oldest;
-    await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (sheet) => StatefulBuilder(
-            builder: (context, update) => SafeArea(
-                  child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Filter Users',
-                              style: Theme.of(context).textTheme.headlineSmall),
-                          const SizedBox(height: 14),
-                          Wrap(spacing: 8, children: [
-                            for (final value in [
-                              'All Roles',
-                              'Patient',
-                              'Clinician',
-                              'Admin'
-                            ])
-                              ChoiceChip(
-                                  label: Text(value),
-                                  selected: role == value,
-                                  onSelected: (_) => update(() => role = value))
-                          ]),
-                          const SizedBox(height: 12),
-                          Wrap(spacing: 8, children: [
-                            for (final value in [
-                              'All Statuses',
-                              'Active',
-                              'Suspended'
-                            ])
-                              ChoiceChip(
-                                  label: Text(value),
-                                  selected: status == value,
-                                  onSelected: (_) =>
-                                      update(() => status = value))
-                          ]),
-                          SwitchListTile(
-                              title: const Text('Oldest First'),
-                              value: oldest,
-                              onChanged: (v) => update(() => oldest = v)),
-                          Row(children: [
-                            TextButton(
-                                onPressed: () {
-                                  update(() {
-                                    role = 'All Roles';
-                                    status = 'All Statuses';
-                                    oldest = false;
-                                  });
-                                },
-                                child: const Text('Reset')),
-                            const Spacer(),
-                            FilledButton(
-                                onPressed: () {
-                                  _role = role;
-                                  _status = status;
-                                  _oldest = oldest;
-                                  _refresh();
-                                  Navigator.pop(sheet);
-                                },
-                                child: const Text('Apply')),
-                          ]),
-                        ],
-                      )),
-                )));
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (context, update) => AppFormDialog(
+          icon: Icons.tune_rounded,
+          title: const Text('Filter Users'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Role', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              for (final value in ['All Roles', 'Patient', 'Clinician', 'Admin'])
+                ChoiceChip(label: Text(value), selected: role == value,
+                  onSelected: (_) => update(() => role = value)),
+            ]),
+            const SizedBox(height: 16),
+            Text('Account status', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              for (final value in ['All Statuses', 'Active', 'Suspended'])
+                ChoiceChip(label: Text(value), selected: status == value,
+                  onSelected: (_) => update(() => status = value)),
+            ]),
+            const SizedBox(height: 12),
+            SwitchListTile.adaptive(contentPadding: EdgeInsets.zero,
+              title: const Text('Oldest First'), value: oldest,
+              onChanged: (value) => update(() => oldest = value)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => update(() {
+              role = 'All Roles'; status = 'All Statuses'; oldest = false;
+            }), child: const Text('Reset')),
+            FilledButton(onPressed: () {
+              _role = role; _status = status; _oldest = oldest;
+              _refresh();
+              Navigator.pop(dialog);
+            }, child: const Text('Apply')),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _setActive(Map<String, dynamic> user) async {
     final active = user['is_active'] == true;
     final approved = await showDialog<bool>(
         context: context,
-        builder: (dialog) => AlertDialog(
+        builder: (dialog) => AppFormDialog(
+              icon: active ? Icons.person_off_outlined : Icons.person_add_alt_rounded,
               title: Text(active ? 'Suspend User?' : 'Restore User?'),
               content: Text(
                   '${user['email']} will be ${active ? 'suspended' : 'restored'}.'),
@@ -663,80 +573,53 @@ class _AuditLogsTabState extends State<_AuditLogsTab> {
       return;
     }
     if (!mounted) return;
-    await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (sheet) => StatefulBuilder(
-            builder: (context, update) => SafeArea(
-                  child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Filter Audit Logs',
-                              style: Theme.of(context).textTheme.headlineSmall),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                              initialValue:
-                                  actions.contains(action) ? action : '',
-                              isExpanded: true,
-                              decoration:
-                                  const InputDecoration(labelText: 'Action'),
-                              items: [
-                                const DropdownMenuItem(
-                                    value: '', child: Text('All Actions')),
-                                for (final value in actions)
-                                  DropdownMenuItem(
-                                      value: value,
-                                      child: Text(value.replaceAll('_', ' '),
-                                          overflow: TextOverflow.ellipsis))
-                              ],
-                              onChanged: (v) =>
-                                  update(() => action = v == '' ? null : v)),
-                          const SizedBox(height: 12),
-                          Wrap(spacing: 8, children: [
-                            for (final value in <String?>[
-                              null,
-                              'success',
-                              'failure'
-                            ])
-                              ChoiceChip(
-                                  label: Text(value == null
-                                      ? 'All Statuses'
-                                      : '${value[0].toUpperCase()}${value.substring(1)}'),
-                                  selected: status == value,
-                                  onSelected: (_) =>
-                                      update(() => status = value))
-                          ]),
-                          SwitchListTile(
-                              title: const Text('Oldest First'),
-                              value: oldest,
-                              onChanged: (v) => update(() => oldest = v)),
-                          Row(children: [
-                            TextButton(
-                                onPressed: () => update(() {
-                                      action = null;
-                                      status = null;
-                                      oldest = false;
-                                    }),
-                                child: const Text('Reset')),
-                            const Spacer(),
-                            FilledButton(
-                                onPressed: () {
-                                  _action = action;
-                                  _status = status;
-                                  _oldest = oldest;
-                                  _refresh();
-                                  Navigator.pop(sheet);
-                                },
-                                child: const Text('Apply'))
-                          ]),
-                        ],
-                      )),
-                )));
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (context, update) => AppFormDialog(
+          icon: Icons.tune_rounded,
+          title: const Text('Filter Audit Logs'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            DropdownButtonFormField<String>(
+              key: ValueKey(action ?? ''),
+              initialValue: actions.contains(action) ? action : '',
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Action'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('All Actions')),
+                for (final value in actions) DropdownMenuItem(value: value,
+                  child: Text(value.replaceAll('_', ' '), overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (value) => update(() => action = value == '' ? null : value),
+            ),
+            const SizedBox(height: 16),
+            Text('Result', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              for (final value in <String?>[null, 'success', 'failure'])
+                ChoiceChip(label: Text(value == null ? 'All Statuses' :
+                  '${value[0].toUpperCase()}${value.substring(1)}'),
+                  selected: status == value,
+                  onSelected: (_) => update(() => status = value)),
+            ]),
+            const SizedBox(height: 12),
+            SwitchListTile.adaptive(contentPadding: EdgeInsets.zero,
+              title: const Text('Oldest First'), value: oldest,
+              onChanged: (value) => update(() => oldest = value)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => update(() {
+              action = null; status = null; oldest = false;
+            }), child: const Text('Reset')),
+            FilledButton(onPressed: () {
+              _action = action; _status = status; _oldest = oldest;
+              _refresh();
+              Navigator.pop(dialog);
+            }, child: const Text('Apply')),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -836,7 +719,8 @@ class _ModelTabState extends State<_ModelTab> {
     final active = model['is_active'] == true;
     final approved = await showDialog<bool>(
         context: context,
-        builder: (dialog) => AlertDialog(
+        builder: (dialog) => AppFormDialog(
+              icon: active ? Icons.pause_circle_outline : Icons.play_circle_outline,
               title: Text(active ? 'Pause Model?' : 'Resume Model?'),
               content: Text(
                   '${model['name']} will be ${active ? 'paused' : 'resumed'}.'),
@@ -860,9 +744,9 @@ class _ModelTabState extends State<_ModelTab> {
   }
 
   Future<void> _contact() async {
-    final uri = Uri(scheme: 'mailto', path: 'shivenreddyxi@gmail.com');
-    if (!await launchUrl(uri) && mounted)
+    if (!await launchDeveloperEmail() && mounted) {
       widget.onError('No email app is available on this device.');
+    }
   }
 
   @override
