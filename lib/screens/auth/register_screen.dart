@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:medguide/theme/app_theme.dart';
+import 'package:medguide/screens/auth/password_strength.dart';
 import 'package:medguide/screens/auth/email_verification_screen.dart';
 import 'package:medguide/services/api_client.dart';
 import 'package:medguide/widgets/screen_help.dart';
+import 'package:medguide/widgets/app_form_dialog.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -23,6 +25,125 @@ class _RegisterScreenState extends State<RegisterScreen> {
   DateTime? _selectedDOB;
   bool _isLoading = false;
   final Map<String, String> _errors = {};
+
+  Future<void> _showPasswordStrengthHelp() => showDialog<void>(
+        context: context,
+        builder: (dialog) => AppFormDialog(
+          icon: Icons.shield_outlined,
+          title: const Text('Choosing a Strong Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                  'Use a unique password that is hard for someone else to guess.',
+                  style: TextStyle(color: AppColors.textPrimary)),
+              const SizedBox(height: 14),
+              Text('Registration requirements',
+                  style: TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text(
+                  'Use 6 to 128 characters, with at least one capital letter, one number, and one special character.',
+                  style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 14),
+              Text('How the meter works',
+                  style: TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text(
+                  'Very weak: the minimum requirements are not met.\n'
+                  'Weak: the password contains your first name or surname.\n'
+                  'Moderate: it meets the requirements but has only one letter.\n'
+                  'Strong: it meets the requirements, avoids your name, and has more than one letter.',
+                  style:
+                      TextStyle(color: AppColors.textSecondary, height: 1.55)),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceBlue,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                    'For better protection, use a longer, unique password and avoid reusing one from another account. The meter is a guide, not a security guarantee.',
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 12)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Got it'),
+            )
+          ],
+        ),
+      );
+
+  Widget _passwordStrengthIndicator() {
+    final strength = classifyRegistrationPassword(
+        _passwordController.text, _fullNameController.text);
+    final level = strength.index + 1;
+    final label = switch (strength) {
+      PasswordStrength.veryWeak => 'Very weak',
+      PasswordStrength.weak => 'Weak',
+      PasswordStrength.moderate => 'Moderate',
+      PasswordStrength.strong => 'Strong',
+    };
+    final detail = switch (strength) {
+      PasswordStrength.veryWeak => 'Meet the password requirements above.',
+      PasswordStrength.weak => 'Avoid using your name or surname.',
+      PasswordStrength.moderate => 'Add more letters for a stronger password.',
+      PasswordStrength.strong => 'Password meets the strength criteria.',
+    };
+    final color = switch (strength) {
+      PasswordStrength.veryWeak => AppColors.danger,
+      PasswordStrength.weak => AppColors.amber,
+      PasswordStrength.moderate => AppColors.primaryBlue,
+      PasswordStrength.strong => AppColors.success,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text('Password strength: $label',
+              style: TextStyle(
+                  color: color, fontSize: 13, fontWeight: FontWeight.w700)),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'About password strength',
+            onPressed: _showPasswordStrengthHelp,
+            icon: Icon(Icons.info_outline_rounded,
+                color: AppColors.primaryBlue, size: 18),
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ]),
+        const SizedBox(height: 7),
+        Row(
+            children: List.generate(
+                4,
+                (index) => Expanded(
+                      child: Container(
+                        height: 5,
+                        margin: EdgeInsets.only(right: index == 3 ? 0 : 5),
+                        decoration: BoxDecoration(
+                          color: index < level ? color : AppColors.border,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ))),
+        const SizedBox(height: 6),
+        Text(detail,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      ]),
+    );
+  }
 
   @override
   void dispose() {
@@ -224,6 +345,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
+              if (_passwordController.text.isNotEmpty)
+                _passwordStrengthIndicator(),
               const SizedBox(height: 14),
 
               _label('Confirm Password'),

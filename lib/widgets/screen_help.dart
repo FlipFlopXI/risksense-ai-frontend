@@ -30,7 +30,7 @@ class ScreenHelpButton extends StatelessWidget {
   static const _content = <String, _HelpContent>{
     'Settings': _HelpContent(
         'Settings',
-        'Manage account security and local app preferences. Changes to your password and sessions are verified by the backend.',
+        'Manage account security, your linked clinician, risk alerts and local display preferences. Password and access changes are checked by the backend.',
         [
           _HelpSection('Account security',
               'These controls require your authenticated account.', [
@@ -40,10 +40,12 @@ class ScreenHelpButton extends StatelessWidget {
                 'Enter your current password. Other active sessions are signed out when the change succeeds.'),
             _HelpEntry(Icons.devices_rounded, 'Active sessions',
                 'Review current and other sessions; revoke a session you no longer recognise.'),
+            _HelpEntry(Icons.person_add_alt_rounded, 'Request a new clinician',
+                'Patients can look up an approved RiskSense clinician by ID and submit a change request. The current link remains until an admin approves; the decision is emailed to the patient.'),
           ]),
           _HelpSection(
               'On this device',
-              'Display and risk-alert choices are saved locally on this device.',
+              'Display choices and dashboard badges are saved on this device. Elevated-result email consent is stored with your patient account.',
               [
                 _HelpEntry(Icons.dark_mode_outlined, 'Dark mode',
                     'Switch between light and dark palettes without changing your data or navigation.'),
@@ -52,15 +54,17 @@ class ScreenHelpButton extends StatelessWidget {
                 _HelpEntry(Icons.motion_photos_off_rounded, 'Reduce motion',
                     'Reduce supported in-app animations.'),
                 _HelpEntry(Icons.notifications_outlined, 'Risk alerts',
-                    'Patient dashboard badges can be shown or hidden; this does not change stored results.'),
+                    'Open Risk Result Alerts to control dashboard badges and separately opt in to elevated-result emails. Emails contain your score, model factors and comparison with a prior score of the same type.'),
               ]),
-          _HelpSection('Legal and privacy',
-              'Open the information panel before sharing health details or acting on a report.', [
-            _HelpEntry(Icons.gavel_rounded, 'Legal & Privacy',
-                'Explains saved health information, clinician access, account security, demonstration payments, and the limits of risk estimates.'),
-          ]),
+          _HelpSection(
+              'Legal and privacy',
+              'Open the information panel before sharing health details or acting on a report.',
+              [
+                _HelpEntry(Icons.gavel_rounded, 'Legal & Privacy',
+                    'Explains saved health information, clinician access, account security, demonstration payments, and the limits of risk estimates.'),
+              ]),
         ],
-        'RiskSense AI settings do not replace medical advice. Device preferences do not change backend access or clinical records.'),
+        'RiskSense AI settings do not replace medical advice. Result emails contain sensitive health information; keep email delivery off if your inbox is shared.'),
     'Registration': _HelpContent(
         'Create your patient account',
         'Enter your own account details, then use the six-digit code sent to your email. Your patient account is created only after the code is verified. Next, activate access and complete the six-step introduction and health form before the dashboard opens.',
@@ -78,36 +82,55 @@ class ScreenHelpButton extends StatelessWidget {
                 _HelpEntry(Icons.badge_outlined, 'Gender',
                     'Choose the option that applies to you. Some analyses require a recorded sex value.'),
               ]),
-          _HelpSection('Account security',
-              'Choose a password you have not reused elsewhere.', [
-            _HelpEntry(Icons.lock_outline_rounded, 'Password',
-                'At least 6 characters, with a capital letter, a number, and a special character.'),
-            _HelpEntry(Icons.verified_user_outlined, 'Confirm password',
-                'Enter exactly the same password again.'),
-            _HelpEntry(Icons.check_box_outlined, 'Consent',
-                'Read and accept the health-data notice before creating the account.'),
-          ]),
+          _HelpSection(
+              'Account security',
+              'Choose a unique password. The live strength meter explains the minimum rules and flags passwords containing your name.',
+              [
+                _HelpEntry(Icons.lock_outline_rounded, 'Password',
+                    'Use 6 to 128 characters with a capital letter, a number and a special character. Tap the information icon beside the strength meter for more guidance.'),
+                _HelpEntry(Icons.verified_user_outlined, 'Confirm password',
+                    'Enter exactly the same password again.'),
+                _HelpEntry(Icons.check_box_outlined, 'Consent',
+                    'Read and accept the health-data notice before creating the account.'),
+              ]),
         ],
         'RiskSense AI provides decision support, not a diagnosis. Registration does not verify a subscription or insurance benefit.'),
     'Onboarding Health Profile': _HelpContent(
       'Complete your health profile',
-      'This final onboarding step records baseline details used across RiskSense. Enter only information you know and can verify; you can update eligible health measurements later.',
+      'The final onboarding form saves baseline measurements and patient-reported health context. Complete it after access activation; enter only information you know and can verify.',
       [
-        _HelpSection('Body measurements', 'Use your current measurements. BMI is calculated automatically from height and weight.', [
-          _HelpEntry(Icons.height_rounded, 'Height', 'Enter centimetres (cm), between 100 and 250.'),
-          _HelpEntry(Icons.monitor_weight_rounded, 'Weight', 'Enter kilograms (kg), between 25 and 350.'),
-          _HelpEntry(Icons.straighten_rounded, 'Waist circumference', 'Optional; record centimetres (cm) if measured.'),
-        ]),
-        _HelpSection('Lifestyle and family history', 'Select the option that describes you. Unknown family history can remain unknown.', [
-          _HelpEntry(Icons.smoke_free_rounded, 'Smoking', 'Never, Former, or Current.'),
-          _HelpEntry(Icons.directions_run_rounded, 'Activity', 'Sedentary, Light, Moderate, or Active.'),
-          _HelpEntry(Icons.local_bar_rounded, 'Alcohol', 'None, Occasional, Regular, or Prefer not to say.'),
-          _HelpEntry(Icons.family_restroom_rounded, 'Family history', 'Record known diabetes, heart disease, and high blood pressure history separately.'),
-        ]),
-        _HelpSection('Health context', 'Only add conditions and medication that apply to you.', [
-          _HelpEntry(Icons.public_rounded, 'Ethnicity', 'Optional account information; if already recorded it cannot be changed here.'),
-          _HelpEntry(Icons.medical_information_outlined, 'Chronic condition', 'Enable the checkbox to describe a chronic condition.'),
-          _HelpEntry(Icons.medication_outlined, 'Chronic medication', 'Optional when a chronic condition is selected; include the name and dose if known.'),
+        _HelpSection(
+            'Body measurements',
+            'Use your current measurements. BMI is calculated automatically from height and weight.',
+            [
+              _HelpEntry(Icons.height_rounded, 'Height',
+                  'Enter centimetres (cm), between 100 and 250.'),
+              _HelpEntry(Icons.monitor_weight_rounded, 'Weight',
+                  'Enter kilograms (kg), between 25 and 350.'),
+              _HelpEntry(Icons.straighten_rounded, 'Waist circumference',
+                  'Optional; record centimetres (cm) if measured.'),
+            ]),
+        _HelpSection(
+            'Lifestyle and family history',
+            'Select the option that describes you. Unknown family history can remain unknown.',
+            [
+              _HelpEntry(Icons.smoke_free_rounded, 'Smoking',
+                  'Never, Former, or Current.'),
+              _HelpEntry(Icons.directions_run_rounded, 'Activity',
+                  'Sedentary, Light, Moderate, or Active.'),
+              _HelpEntry(Icons.local_bar_rounded, 'Alcohol',
+                  'None, Occasional, Regular, or Prefer not to say.'),
+              _HelpEntry(Icons.family_restroom_rounded, 'Family history',
+                  'Record known diabetes, heart disease, and high blood pressure history separately.'),
+            ]),
+        _HelpSection('Health context',
+            'Only add conditions and medication that apply to you.', [
+          _HelpEntry(Icons.public_rounded, 'Ethnicity',
+              'Optional account information; if already recorded it cannot be changed here.'),
+          _HelpEntry(Icons.medical_information_outlined, 'Chronic condition',
+              'Enable the checkbox to describe a chronic condition.'),
+          _HelpEntry(Icons.medication_outlined, 'Chronic medication',
+              'Optional when a chronic condition is selected; include the name and dose if known.'),
         ]),
       ],
       'RiskSense AI provides decision support, not a diagnosis. Do not guess clinical information or change treatment based on this form.',
@@ -166,19 +189,19 @@ class ScreenHelpButton extends StatelessWidget {
             ]),
         _HelpSection(
             'Laboratory results',
-            'Use actual measured laboratory values. If a required result is missing, the backend will request it rather than invent a value.',
+            'Enter new measured values only if available. A heart analysis can run without a new fasting glucose or cholesterol value; its missing-input model estimates those features from training data and warns of added uncertainty. Older readings are not silently reused.',
             [
               _HelpEntry(Icons.water_drop_rounded, 'Fasting glucose',
-                  'mg/dL; the current heart model uses whether this reading exceeds its validated threshold.'),
+                  'mg/dL. A fasting reading logged today in Nutrition can fill this field. Older readings are not automatically copied into a new analysis.'),
               _HelpEntry(Icons.biotech_rounded, 'Total cholesterol',
-                  'mg/dL; required by the current heart model.'),
+                  'mg/dL. If you have no new reading, leave this blank and review the reduced-accuracy notice before heart analysis.'),
             ]),
         _HelpSection(
             'Choose analysis', 'The button runs only the selected model.', [
           _HelpEntry(Icons.bloodtype_rounded, 'Diabetes',
               'Uses age, sex, BMI, waist circumference, and systolic/diastolic blood pressure.'),
           _HelpEntry(Icons.favorite_rounded, 'Heart disease',
-              'Uses age, sex, systolic blood pressure, total cholesterol, and a fasting-glucose category.'),
+              'Uses age, sex and systolic pressure, with new cholesterol and fasting-glucose values when provided. The missing-input model handles absent new lab values with additional uncertainty.'),
           _HelpEntry(Icons.monitor_heart_outlined, 'Already diagnosed?',
               'If you reported a diagnosis of the selected condition, a badge and switch offer a seven-day health trends report. You can still choose to run the risk model.'),
         ]),
@@ -187,7 +210,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Prediction Result': _HelpContent(
       'Risk analysis result',
-      'This screen presents the selected model’s score, its threshold classification, and feature contributions calculated from that same model run.',
+      'This screen shows a saved model estimate, classification and factors from the same analysis. Review any missing-input notice alongside the score.',
       [
         _HelpSection(
             'Analysis types',
@@ -196,7 +219,7 @@ class ScreenHelpButton extends StatelessWidget {
               _HelpEntry(Icons.bloodtype_rounded, 'Diabetes',
                   'Age, sex, BMI, waist circumference, systolic pressure, and diastolic pressure.'),
               _HelpEntry(Icons.favorite_rounded, 'Heart disease',
-                  'Age, sex, systolic pressure, total cholesterol, and fasting-glucose category.'),
+                  'Age, sex and systolic pressure, plus newly entered cholesterol and fasting-glucose information when available. Missing lab inputs increase uncertainty.'),
             ]),
         _HelpSection(
             'Reading your result',
@@ -220,7 +243,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Nutrition': _HelpContent(
       'Nutrition',
-      'Track food, water, blood glucose and insulin doses you have taken. Generate Meal Plan opens separate, flexible guidance based on your latest risk analyses.',
+      'Use the Food, Water and Blood Glucose tabs to log what you consumed or measured. Generate Meal Plan opens flexible guidance based on your latest saved analyses.',
       [
         _HelpSection('Food log',
             'Add one food or ingredient at a time to the appropriate meal.', [
@@ -244,7 +267,7 @@ class ScreenHelpButton extends StatelessWidget {
             'Patient-entered meter readings and insulin doses are tracked separately from verified laboratory results.',
             [
               _HelpEntry(Icons.bloodtype_outlined, 'Reading types',
-                  'Select Fasting, Post-meal or General and enter the measured blood glucose in mg/dL. The app does not infer a reading type.'),
+                  'Select Fasting, Post-meal or General and enter the measured glucose in mg/dL. A fasting reading entered today can prefill Health Data Input for that day only.'),
               _HelpEntry(Icons.vaccines_rounded, 'Insulin doses',
                   'Log an insulin dose already taken in units (U). This is not a blood insulin test and does not provide dosing advice.'),
               _HelpEntry(Icons.show_chart_rounded, 'Seven-day trends',
@@ -255,7 +278,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Mindfulness': _HelpContent(
       'Mindfulness',
-      'Use Mood to record how you feel, Breathing for timed guided exercises, and Meditation to play soundscapes and review your session history.',
+      'Use Mood to log one-word emotions and a brief reason, Breathing for timed exercises, and Meditation for audio sessions. Each tab shows recent activity.',
       [
         _HelpSection('Mood', 'Entries belong to your patient account.', [
           _HelpEntry(Icons.mood_rounded, 'Current mood',
@@ -277,7 +300,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Meal Plan': _HelpContent(
       'Meal guidance',
-      'This screen builds flexible food-group guidance from your latest saved diabetes and heart-disease analyses. It is generated on your device when opened.',
+      'This screen generates broad meal-structure guidance from the latest available Diabetes and Heart Disease analyses. It does not prescribe specific ingredients or quantities.',
       [
         _HelpSection(
             'How the focus is chosen',
@@ -306,7 +329,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Fitness': _HelpContent(
       'Fitness tracking',
-      'Daily Activity displays measurements you record. Body Metrics uses your saved health profile height and weight. Generate Fitness Routine opens general activity guidance.',
+      'Daily Activity tracks logged movement, and Body Metrics shows recorded weight and calculated BMI. Generate Fitness Routine opens general activity guidance.',
       [
         _HelpSection('Daily Activity', 'No activity values are estimated.', [
           _HelpEntry(Icons.directions_run_rounded, 'Steps and activity time',
@@ -330,7 +353,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Fitness Routine': _HelpContent(
       'Fitness guidance',
-      'This screen offers a gradual activity framework informed by your latest saved analyses. It does not test exercise readiness.',
+      'This screen offers gradual activity ideas informed by your latest saved analyses. Use the PDF action to keep a copy; the plan does not test exercise readiness.',
       [
         _HelpSection(
             'How the focus is chosen',
@@ -357,7 +380,7 @@ class ScreenHelpButton extends StatelessWidget {
     ),
     'Dashboard': _HelpContent(
         'Patient dashboard',
-        'A quick view of your most recently saved risk analyses and health measurements. Returning to this tab refreshes the values.',
+        'A quick view of your latest saved risk estimates, today’s Drug Assistant enquiries and recent measurements. The tab refreshes when you return.',
         [
           _HelpSection('At a glance',
               'Values come from your account and recorded history.', [
@@ -367,7 +390,9 @@ class ScreenHelpButton extends StatelessWidget {
                 'Counts today’s saved Drug Assistant questions.'),
             _HelpEntry(Icons.monitor_heart_rounded, 'Quick stats',
                 'Shows the latest recorded measurements and their available timestamps.'),
-            _HelpEntry(Icons.edit_note_rounded, 'Update Health Metrics',
+            _HelpEntry(
+                Icons.edit_note_rounded,
+                'Health Metrics & Risk Analysis',
                 'Opens the Health Data Input screen.'),
             _HelpEntry(Icons.restaurant_menu_rounded, 'Nutrition',
                 'Open food, water, and blood-glucose logs or generate flexible meal guidance from your latest available analyses.'),
@@ -384,7 +409,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Risk scores are estimates, not diagnoses. A recent measurement may differ from your current condition.'),
     'Health Trends': _HelpContent(
         'Health trends',
-        'Explore recorded measurements across the last seven days. A patient with a reported diagnosis can also open a condition-specific trends report from Health Data Input.',
+        'Explore dated measurements from the last seven days. Patients who reported a diagnosis can open a condition-specific trends report from Health Data Input.',
         [
           _HelpSection(
               'Graphs',
@@ -397,18 +422,20 @@ class ScreenHelpButton extends StatelessWidget {
                 _HelpEntry(Icons.favorite_rounded, 'Systolic pressure',
                     'Uses the upper blood-pressure measurement from saved vitals.'),
               ]),
-          _HelpSection('Condition-specific report',
-              'The report uses saved readings and highlights net increases to discuss, not causes or model contributions.', [
-            _HelpEntry(Icons.bar_chart_rounded, 'Readings to review',
-                'A first-to-latest increase in glucose, blood pressure or cholesterol is shown with its units and date. One reading cannot establish a trend.'),
-            _HelpEntry(Icons.picture_as_pdf_outlined, 'PDF report',
-                'Open a PDF summary of the available seven-day readings from the report screen.'),
-          ]),
+          _HelpSection(
+              'Condition-specific report',
+              'The report uses saved readings and highlights net increases to discuss, not causes or model contributions.',
+              [
+                _HelpEntry(Icons.bar_chart_rounded, 'Readings to review',
+                    'A first-to-latest increase in glucose, blood pressure or cholesterol is shown with its units and date. One reading cannot establish a trend.'),
+                _HelpEntry(Icons.picture_as_pdf_outlined, 'PDF report',
+                    'Open a PDF summary of the available seven-day readings from the report screen.'),
+              ]),
         ],
         'These are historical readings. Discuss unusual or concerning values with a health professional.'),
     'Prediction History': _HelpContent(
         'Prediction history',
-        'Review saved risk analyses and how results have changed over time.',
+        'Review saved model estimates newest first, open individual results and filter the history by type or risk level.',
         [
           _HelpSection('Explore results',
               'The trend chart follows the most recently run analysis type.', [
@@ -423,7 +450,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Changes in model scores do not prove that a disease has developed or improved.'),
     'Assistant': _HelpContent(
         'RiskSense Assistant',
-        'Ask about a named medicine for reviewed educational evidence. Patient accounts can manage a self-reported medication list and summarize their own recorded health trends with text commands.',
+        'Ask about a named medicine using reviewed evidence, manage your self-reported medication list, or request a summary of your recorded health trends.',
         [
           _HelpSection('How answers work',
               'Evidence availability varies by medicine and question.', [
@@ -434,7 +461,7 @@ class ScreenHelpButton extends StatelessWidget {
             _HelpEntry(Icons.info_outline_rounded, 'Missing evidence',
                 'Insufficient Evidence means this specific topic is not covered; it does not establish safety.'),
             _HelpEntry(Icons.forum_outlined, 'Conversation',
-                'Messages are saved to the authorized patient conversation.'),
+                'The visible chat is kept on this device for one day, then refreshed. Expand Suggested Questions when you want examples.'),
           ]),
           _HelpSection(
               'Medication list commands',
@@ -462,7 +489,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Medication entries are patient reported. Removing one from the app does not mean you should stop taking it. Educational information cannot prescribe, diagnose, or establish safety; consult your prescriber or pharmacist.'),
     'My Profile': _HelpContent(
         'My profile',
-        'Review account identity, access information, and the shortcut to device settings.',
+        'Review your patient identity, subscription or insurance access, linked clinician and settings shortcut. Subscription renewal opens the website flow.',
         [
           _HelpSection('Account details',
               'These values come from backend account records.', [
@@ -481,7 +508,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Contact support if account or access details appear incorrect. Do not share your login credentials.'),
     'Admin Console': _HelpContent(
         'Admin console',
-        'Operational overview for authorized administrators.',
+        'Review authorized system metrics, recent activity and pending clinician-change requests. The notification badge counts requests awaiting review.',
         [
           _HelpSection('What you can review',
               'These are account and system-management views.', [
@@ -491,12 +518,14 @@ class ScreenHelpButton extends StatelessWidget {
                 'Inspect recorded audit activity and items requiring attention.'),
             _HelpEntry(Icons.model_training_rounded, 'Models',
                 'Review active model versions and availability.'),
+            _HelpEntry(Icons.notifications_outlined, 'Clinician requests',
+                'Tap the notification badge to inspect the patient, current clinician and requested clinician. Approving replaces the link; rejecting keeps it unchanged.'),
           ]),
         ],
         'Administrative privileges do not replace clinical authorization. Verify the target of every action.'),
     'User Management': _HelpContent(
         'User management',
-        'Search for accounts and review their access state before acting.',
+        'Search and filter other user accounts by role or status before suspending or restoring access. Your own admin account is excluded from this list.',
         [
           _HelpSection('Account controls',
               'Available actions are restricted by your administrator role.', [
@@ -511,7 +540,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Confirm account identity and the reason for changing access before taking an administrative action.'),
     'Audit Logs': _HelpContent(
         'Audit logs',
-        'Review recorded security and operational events.',
+        'Review recorded security and operational events, filter by action or actor, and sort the most recent or oldest entries first.',
         [
           _HelpSection(
               'Reading entries',
@@ -528,7 +557,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Audit logs may be incomplete context for an incident. Handle them as sensitive operational records.'),
     'Model Management': _HelpContent(
         'Model management',
-        'Review registered model versions and control their availability.',
+        'Inspect registered model versions, their recorded accuracy and availability. Pause or resume controls affect new analyses and are audited.',
         [
           _HelpSection(
               'Model state', 'Changes affect whether new analyses can run.', [
@@ -543,7 +572,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Confirm model identity and operational impact before activating or suspending a version.'),
     'Admin Profile': _HelpContent(
         'Admin profile',
-        'Review your administrator account and recent recorded activity.',
+        'Review your admin identity, last login and most recent recorded action. Tap to reveal the admin ID; sign out when finished.',
         [
           _HelpSection('Profile fields',
               'Displayed activity is based on backend records.', [
@@ -560,7 +589,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Recent activity may not include every action. Report unrecognized account activity promptly.'),
     'Clinician Dashboard': _HelpContent(
         'Clinician dashboard',
-        'Overview of patients and recent information available to your authorized clinician account.',
+        'Review linked-patient counts, recent cases and high alerts available to your approved clinician account.',
         [
           _HelpSection('Clinical workflow',
               'Patient details are limited to permitted relationships.', [
@@ -575,7 +604,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Decision-support signals do not replace a full clinical assessment or professional judgment.'),
     'Patients': _HelpContent(
         'Patients',
-        'Find patients linked to your clinician account.',
+        'Search and filter patients with an active link to your clinician account. Open a result to review its permitted details.',
         [
           _HelpSection('Patient list',
               'Only authorized relationships should be visible.', [
@@ -590,7 +619,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Access a patient record only for an authorized care purpose.'),
     'Clinician Profile': _HelpContent(
         'Clinician profile',
-        'Review your professional and account information.',
+        'Review your professional identity, institution, recorded gender and account information; use Settings for account controls.',
         [
           _HelpSection('Identity',
               'These are backend clinician and user-account fields.', [
@@ -605,7 +634,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Check that your professional details are correct before relying on them.'),
     'Patient Detail': _HelpContent(
         'Patient details',
-        'Review information for a patient linked to your clinician account.',
+        'Review an actively linked patient’s profile, recent measurements and saved predictions. Prediction details show the input snapshot for that analysis.',
         [
           _HelpSection('Record sections',
               'Displayed information depends on current authorization.', [
@@ -622,7 +651,7 @@ class ScreenHelpButton extends StatelessWidget {
         'Use the full clinical record and professional judgment; model estimates are not diagnoses.'),
     'Demonstration Analysis': _HelpContent(
         'Clinician demonstration analysis',
-        'Enter temporary demographic and measurement inputs for a model demonstration.',
+        'Enter temporary demographic and measured inputs to demonstrate a model. The assessment is not added to a real patient’s history.',
         [
           _HelpSection('Data and privacy',
               'The selected model uses only its required fields.', [
@@ -654,9 +683,11 @@ class ScreenHelpButton extends StatelessWidget {
         showDialog<void>(
           context: context,
           builder: (dialogContext) => Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             backgroundColor: AppColors.cardWhite,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: 460,
@@ -667,108 +698,165 @@ class ScreenHelpButton extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [AppColors.heroStart, AppColors.heroEnd]),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    gradient: LinearGradient(
+                        colors: [AppColors.heroStart, AppColors.heroEnd]),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.help_outline_rounded, color: Colors.white, size: 28),
+                    const Icon(Icons.help_outline_rounded,
+                        color: Colors.white, size: 28),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(detail.title,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 19))),
+                    Expanded(
+                        child: Text(detail.title,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 19))),
                     IconButton(
                       tooltip: 'Close help',
                       onPressed: () => Navigator.pop(dialogContext),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      icon:
+                          const Icon(Icons.close_rounded, color: Colors.white),
                     ),
                   ]),
                 ),
-                Flexible(child: SingleChildScrollView(
+                Flexible(
+                    child: SingleChildScrollView(
                   padding: const EdgeInsets.all(18),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceBlue,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: .20)),
-                      ),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('ABOUT THIS SCREEN', style: TextStyle(
-                            color: AppColors.primaryBlue, fontSize: 10,
-                            fontWeight: FontWeight.w700, letterSpacing: 1.1)),
-                        const SizedBox(height: 7),
-                        Text(detail.intro, style: TextStyle(
-                            color: AppColors.textPrimary, height: 1.45)),
-                      ]),
-                    ),
-                    for (final section in detail.sections) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardWhite,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(section.title, style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary)),
-                          const SizedBox(height: 5),
-                          Text(section.context, style: TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary, height: 1.4)),
-                          for (final entry in section.entries) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceTeal,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.teal.withValues(alpha: .20)),
-                              ),
-                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Icon(entry.icon, size: 21, color: AppColors.teal),
-                                const SizedBox(width: 10),
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(entry.label, style: TextStyle(
-                                      fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                                  const SizedBox(height: 3),
-                                  Text(entry.detail, style: TextStyle(
-                                      fontSize: 12, color: AppColors.textSecondary, height: 1.4)),
-                                ])),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceBlue,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: AppColors.primaryBlue
+                                    .withValues(alpha: .20)),
+                          ),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('ABOUT THIS SCREEN',
+                                    style: TextStyle(
+                                        color: AppColors.primaryBlue,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 1.1)),
+                                const SizedBox(height: 7),
+                                Text(detail.intro,
+                                    style: TextStyle(
+                                        color: AppColors.textPrimary,
+                                        height: 1.45)),
                               ]),
+                        ),
+                        for (final section in detail.sections) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardWhite,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
                             ),
-                          ],
-                        ]),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.amber.withValues(alpha: .11),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.amber.withValues(alpha: .35)),
-                      ),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 21),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(detail.disclaimer, style: TextStyle(
-                            fontSize: 12, color: AppColors.textPrimary, height: 1.4))),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(section.title,
+                                      style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary)),
+                                  const SizedBox(height: 5),
+                                  Text(section.context,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                          height: 1.4)),
+                                  for (final entry in section.entries) ...[
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceTeal,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: AppColors.teal
+                                                .withValues(alpha: .20)),
+                                      ),
+                                      child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(entry.icon,
+                                                size: 21,
+                                                color: AppColors.teal),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                                child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                  Text(entry.label,
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: AppColors
+                                                              .textPrimary)),
+                                                  const SizedBox(height: 3),
+                                                  Text(entry.detail,
+                                                      style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: AppColors
+                                                              .textSecondary,
+                                                          height: 1.4)),
+                                                ])),
+                                          ]),
+                                    ),
+                                  ],
+                                ]),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.amber.withValues(alpha: .11),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: AppColors.amber.withValues(alpha: .35)),
+                          ),
+                          child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline_rounded,
+                                    color: AppColors.amber, size: 21),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                    child: Text(detail.disclaimer,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textPrimary,
+                                            height: 1.4))),
+                              ]),
+                        ),
                       ]),
-                    ),
-                  ]),
                 )),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-                  child: SizedBox(width: double.infinity, child: FilledButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Done'),
-                  )),
+                  child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Done'),
+                      )),
                 ),
               ]),
             ),

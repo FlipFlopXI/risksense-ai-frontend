@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medguide/widgets/screen_help.dart';
 import 'package:medguide/theme/app_theme.dart';
 import 'package:medguide/services/api_client.dart';
@@ -18,8 +21,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final ScrollController _scrollController = ScrollController();
   final MedicationCommands _medicationCommands =
       const MedicationCommands(ApiMedicationStore());
-  final HealthTrendCommands _healthTrendCommands = HealthTrendCommands(
-      const ApiHealthTrendSource(), now: DateTime.now);
+  final HealthTrendCommands _healthTrendCommands =
+      HealthTrendCommands(const ApiHealthTrendSource(), now: DateTime.now);
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
       text:
@@ -28,17 +31,111 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     ),
   ];
   bool _isTyping = false;
+  bool _restoringChat = true;
+  bool _suggestionsExpanded = false;
   String? _sessionId;
+  String? _storageKey;
+  DateTime _startedAt = DateTime.now().toUtc();
+  Timer? _expiryTimer;
+  Future<void> _writeQueue = Future.value();
+  static const _chatStorage = FlutterSecureStorage();
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreChat();
+    _expiryTimer =
+        Timer.periodic(const Duration(minutes: 1), (_) => _expireIfNeeded());
+  }
+
+  bool get _expired =>
+      DateTime.now().toUtc().difference(_startedAt) >= const Duration(days: 1);
+
+  void _expireIfNeeded() {
+    if (!_expired || !mounted) return;
+    setState(() {
+      _messages
+        ..clear()
+        ..add(_welcomeMessage);
+      _sessionId = null;
+      _startedAt = DateTime.now().toUtc();
+      _suggestionsExpanded = false;
+    });
+    _persistChat();
+  }
+
+  _ChatMessage get _welcomeMessage => const _ChatMessage(
+      text:
+          'Hello, I’m your RiskSense AI Assistant. Ask about a named medication for reviewed educational information, or ask me to "show my health trends" for a summary of your recorded measurements. To save a medication, use this format: add medication name + routine + dosage. For example, type "add medication metformin + every morning + 500 mg". Put a + between the medication name, routine, and dosage. The routine and dosage are optional: "add medication metformin" also works. Type "view medication" to see your list, or "remove medication + metformin" to remove one. I cannot diagnose or prescribe.',
+      isUser: false);
+
+  Future<void> _restoreChat() async {
+    if (!ApiClient.instance.hasStoredSession) {
+      if (mounted) setState(() => _restoringChat = false);
+      return;
+    }
+    try {
+      final user = Map<String, dynamic>.from(
+          await ApiClient.instance.get('/auth/me') as Map);
+      final id = user['id']?.toString();
+      if (id == null || id.isEmpty) return;
+      _storageKey = 'risk_assistant_chat_$id';
+      final raw = await _chatStorage.read(key: _storageKey!);
+      if (raw == null) return;
+      final saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final started =
+          DateTime.tryParse(saved['started_at']?.toString() ?? '')?.toUtc();
+      final items = (saved['messages'] as List? ?? const [])
+          .whereType<Map>()
+          .map((value) =>
+              _ChatMessage.fromJson(Map<String, dynamic>.from(value)))
+          .toList();
+      if (started == null ||
+          DateTime.now().toUtc().difference(started) >=
+              const Duration(days: 1) ||
+          items.isEmpty) {
+        await _chatStorage.delete(key: _storageKey!);
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _startedAt = started;
+        _sessionId = saved['session_id']?.toString();
+        _messages
+          ..clear()
+          ..addAll(items);
+      });
+    } catch (_) {
+      // A malformed local transcript must not block the assistant.
+    } finally {
+      if (mounted) setState(() => _restoringChat = false);
+    }
+  }
+
+  void _persistChat() {
+    final key = _storageKey;
+    if (key == null) return;
+    final payload = jsonEncode({
+      'started_at': _startedAt.toIso8601String(),
+      'session_id': _sessionId,
+      'messages': _messages.map((message) => message.toJson()).toList(),
+    });
+    _writeQueue = _writeQueue
+        .then((_) => _chatStorage.write(key: key, value: payload))
+        .catchError((_) {});
+  }
 
   void _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _restoringChat) return;
+    _expireIfNeeded();
 
     setState(() {
       _messages.add(_ChatMessage(text: text, isUser: true));
       _isTyping = true;
       _controller.clear();
     });
+    _persistChat();
     _scrollToBottom();
 
     try {
@@ -49,9 +146,11 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         setState(() {
           _isTyping = false;
           _messages.add(const _ChatMessage(
-              text: 'Medication list commands are available to patient accounts only.',
+              text:
+                  'Medication list commands are available to patient accounts only.',
               isUser: false));
         });
+        _persistChat();
         return;
       }
       final medicationReply = await _medicationCommands.handle(text);
@@ -61,6 +160,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           _isTyping = false;
           _messages.add(_ChatMessage(text: medicationReply, isUser: false));
         });
+        _persistChat();
         _scrollToBottom();
         return;
       }
@@ -73,6 +173,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           _isTyping = false;
           _messages.add(_ChatMessage(text: trendReply, isUser: false));
         });
+        _persistChat();
         _scrollToBottom();
         return;
       }
@@ -117,6 +218,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             isUser: false));
       });
     }
+    _persistChat();
     _scrollToBottom();
   }
 
@@ -134,6 +236,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   void dispose() {
+    _expiryTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -229,70 +332,110 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                     ),
                   ),
 
-                  // Suggested prompts (only on first load)
-                  if (_messages.length == 1)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Suggested Questions',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              'What are the side effects of metformin?',
-                              'Can I take metformin while pregnant?',
-                              'Show my health trends',
-                              'Show my blood pressure trend',
-                              'Add medication…',
-                              'View medication',
-                              'Remove medication…',
-                            ]
-                                .map(
-                                  (q) => GestureDetector(
-                                    onTap: () {
-                                      _controller.text = switch (q) {
-                                        'Add medication…' => 'add medication ',
-                                        'Remove medication…' => 'remove medication ',
-                                        _ => q,
-                                      };
-                                      if (!q.endsWith('…')) _sendMessage();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surfaceBlue,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                            color: AppColors.primaryBlue
-                                                .withValues(alpha: 0.2)),
-                                      ),
-                                      child: Text(
-                                        q,
-                                        style: TextStyle(
+                  // Suggested prompts stay available without occupying chat space.
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardWhite,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: AppColors.primaryBlue.withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => setState(() =>
+                              _suggestionsExpanded = !_suggestionsExpanded),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 11),
+                            child: Row(children: [
+                              Icon(Icons.lightbulb_outline_rounded,
+                                  color: AppColors.primaryBlue, size: 19),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                  child: Text('Suggested Questions',
+                                      style: TextStyle(
                                           fontSize: 13,
-                                          color: AppColors.primaryBlue,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary))),
+                              Icon(
+                                  _suggestionsExpanded
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  color: AppColors.primaryBlue),
+                            ]),
+                          ),
+                        ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                          child: _suggestionsExpanded
+                              ? Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      'What are the side effects of metformin?',
+                                      'Can I take metformin while pregnant?',
+                                      'Show my health trends',
+                                      'Show my blood pressure trend',
+                                      'Add medication…',
+                                      'View medication',
+                                      'Remove medication…',
+                                    ]
+                                        .map(
+                                          (q) => GestureDetector(
+                                            onTap: () {
+                                              setState(() =>
+                                                  _suggestionsExpanded = false);
+                                              _controller.text = switch (q) {
+                                                'Add medication…' =>
+                                                  'add medication ',
+                                                'Remove medication…' =>
+                                                  'remove medication ',
+                                                _ => q,
+                                              };
+                                              if (!q.endsWith('…')) {
+                                                _sendMessage();
+                                              }
+                                            },
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.surfaceBlue,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                    color: AppColors.primaryBlue
+                                                        .withValues(
+                                                            alpha: 0.2)),
+                                              ),
+                                              child: Text(
+                                                q,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: AppColors.primaryBlue,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
                                   ),
                                 )
-                                .toList(),
-                          ),
-                        ],
-                      ),
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
+                  ),
 
                   // Messages list
                   Expanded(
@@ -322,6 +465,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                           Expanded(
                             child: TextField(
                               controller: _controller,
+                              enabled: !_restoringChat,
                               decoration: InputDecoration(
                                 hintText: 'Ask about your health data...',
                                 filled: true,
@@ -382,6 +526,22 @@ class _ChatMessage {
     this.evidenceStatus,
     this.sources = const [],
   });
+
+  factory _ChatMessage.fromJson(Map<String, dynamic> value) => _ChatMessage(
+        text: value['text']?.toString() ?? '',
+        isUser: value['is_user'] == true,
+        evidenceStatus: value['evidence_status']?.toString(),
+        sources: (value['sources'] as List? ?? const [])
+            .whereType<String>()
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'is_user': isUser,
+        'evidence_status': evidenceStatus,
+        'sources': sources,
+      };
 }
 
 class _MessageBubble extends StatelessWidget {
