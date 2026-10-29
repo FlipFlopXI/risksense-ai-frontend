@@ -32,6 +32,14 @@ void main() {
     expect(conditions.other, 'Asthma');
   });
 
+  test('recognizes affirmative diagnoses entered in older onboarding text', () {
+    final conditions = RecordedConditions.fromText(
+        'I have type 2 diabetes; Diagnosed with heart disease; Asthma');
+    expect(conditions.diabetes, isTrue);
+    expect(conditions.heartDisease, isTrue);
+    expect(conditions.other, 'Asthma');
+  });
+
   test('clearing all conditions produces a null profile value', () {
     expect(const RecordedConditions().toProfileText(), isNull);
   });

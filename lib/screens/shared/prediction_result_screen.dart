@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:medguide/widgets/screen_help.dart';
 import 'package:percent_indicator/percent_indicator.dart';
@@ -107,7 +108,8 @@ class _PredictionResultScreenState extends State<PredictionResultScreen>
       if (!mounted) return;
       await showDialog<void>(
           context: context,
-          builder: (dialog) => AlertDialog(
+          builder: (dialog) => AppFormDialog(
+                icon: Icons.picture_as_pdf_outlined,
                 title: const Text('PDF Unavailable'),
                 content: Text(error is ApiException
                     ? error.message

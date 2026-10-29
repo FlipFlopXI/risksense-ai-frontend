@@ -28,6 +28,30 @@ class _FakeGlucose implements GlucoseDataSource {
 }
 
 void main() {
+  testWidgets('glucose and insulin popups reject out-of-range entries', (tester) async {
+    final api = _FakeGlucose();
+    final day = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: GlucoseTab(api: api, day: day))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Glucose Reading'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, '601');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a meter reading from 20 to 600 mg/dL.'), findsOneWidget);
+    expect(api.entries, isEmpty);
+    await tester.enterText(find.byType(TextFormField).last, '140');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(api.entries.length, 1);
+    await tester.tap(find.text('Log Insulin Dose'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, '501');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a recorded dose greater than 0 and up to 500 U.'), findsOneWidget);
+    expect(api.entries.length, 1);
+  });
   testWidgets('glucose type and insulin dose are saved and refresh immediately',
       (tester) async {
     final api = _FakeGlucose();

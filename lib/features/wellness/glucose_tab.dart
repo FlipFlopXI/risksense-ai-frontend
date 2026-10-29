@@ -1,8 +1,9 @@
+import 'package:medguide/widgets/app_numeric_input.dart';
+import 'package:medguide/services/patient_measurement_validation.dart';
 import 'package:medguide/widgets/app_form_dialog.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:medguide/features/wellness/glucose_data_source.dart';
 import 'package:medguide/services/api_client.dart';
@@ -435,23 +436,19 @@ class _MetabolicEntryDialogState extends State<_MetabolicEntryDialog> {
                   autofocus: true,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
-                  ],
+                  inputFormatters: [AppNumericInput.decimal],
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: InputDecoration(
                       labelText: dose ? 'Dose taken' : 'Blood glucose',
                       suffixText: dose ? 'U' : 'mg/dL'),
                   validator: (text) {
-                    final n = double.tryParse(text?.trim() ?? '');
-                    return n == null || n <= 0 || n > 1000
-                        ? 'Enter a value greater than 0 and up to 1000'
-                        : null;
+                    return PatientMeasurementValidation.metabolic(text, insulinDose: dose);
                   }),
               const SizedBox(height: 10),
               Text(
                   dose
-                      ? 'Record a dose already taken. This does not provide dosing advice.'
-                      : 'Enter a meter reading. This is patient-reported, not a verified lab result.',
+                      ? 'Record a dose already taken. This is an app entry limit, not dosing advice. If your prescribed dose is outside the range, contact your clinician.'
+                      : 'Enter a meter reading. If the meter shows HI or LO, do not guess a number. This is patient-reported, not a verified lab result.',
                   style:
                       TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             ])),

@@ -74,7 +74,7 @@ class RiskMeterWidget extends StatelessWidget {
           animationDuration: 1200,
           percent: percent,
           center: Text(
-            '${(percent * 100).toInt()}%',
+            '${(percent * 100).toStringAsFixed(1)}%',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 15,

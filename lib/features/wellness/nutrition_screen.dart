@@ -1,3 +1,4 @@
+import 'package:medguide/widgets/app_numeric_input.dart';
 import 'package:medguide/widgets/app_form_dialog.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -580,6 +581,7 @@ class _GoalDialogState extends State<_GoalDialog> {
           TextFormField(
             controller: _controller,
             autofocus: true,
+            inputFormatters: [AppNumericInput.digits],
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
                 labelText: 'Goal', suffixText: 'kcal / day'),
@@ -760,6 +762,7 @@ class _FoodEntryDialogState extends State<_FoodEntryDialog> {
           TextEditingController controller, String label, double max) =>
       TextFormField(
           controller: controller,
+          inputFormatters: [AppNumericInput.decimal],
           readOnly: _selectedBarcode != null,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
@@ -847,6 +850,7 @@ class _FoodEntryDialogState extends State<_FoodEntryDialog> {
                           const SizedBox(height: 10),
                           TextFormField(
                               controller: _amount,
+                              inputFormatters: [AppNumericInput.decimal],
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                       decimal: true),

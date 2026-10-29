@@ -16,11 +16,13 @@ enum _Order { latest, oldest }
 
 class HistoryScreen extends StatefulWidget {
   final RiskLevelFilter initialLevel;
+  final ValueChanged<String>? onPredictionViewed;
   final Future<List<Map<String, dynamic>>> Function()? predictionsLoader;
   final Future<void> Function(BuildContext, String)? reportOpener;
   const HistoryScreen({
     super.key,
     this.initialLevel = RiskLevelFilter.all,
+    this.onPredictionViewed,
     this.predictionsLoader,
     this.reportOpener,
   });
@@ -315,7 +317,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               : () => _openReport(prediction['id'].toString()),
                       onTap: score == null
                           ? null
-                          : () => Navigator.push(
+                          : () {
+                              if (prediction['id'] != null) {
+                                widget.onPredictionViewed
+                                    ?.call(prediction['id'].toString());
+                              }
+                              Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => PredictionResultScreen(
@@ -341,7 +348,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                             .toList(),
                                   ),
                                 ),
-                              ),
+                              );
+                            },
                     );
                   }),
               ],

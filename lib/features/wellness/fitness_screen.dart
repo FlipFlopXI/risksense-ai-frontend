@@ -1,3 +1,5 @@
+import 'package:medguide/services/patient_measurement_validation.dart';
+import 'package:medguide/widgets/app_numeric_input.dart';
 import 'package:medguide/widgets/app_form_dialog.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -90,7 +92,7 @@ class _FitnessScreenState extends State<FitnessScreen> {
             title: 'Update Weight',
             labels: const ['Weight (kg)'],
             initial: [(current['weight_kg'] as num?)?.toDouble()],
-            limits: const [500]));
+            limits: const [350]));
     if (value == null) return;
     try {
       await api.saveWeight(value);
@@ -101,8 +103,12 @@ class _FitnessScreenState extends State<FitnessScreen> {
   }
 
   Future<void> editComposition() async {
+    final current = await body;
+    if (!mounted) return;
     final values = await showDialog<List<double>>(
-        context: context, builder: (_) => const _CompositionDialog());
+        context: context,
+        builder: (_) => _CompositionDialog(
+            currentWeight: (current['weight_kg'] as num?)?.toDouble()));
     if (values == null) return;
     try {
       await api.saveComposition(values[0], values[1]);
@@ -539,6 +545,9 @@ class _FitnessEntryDialogState extends State<_FitnessEntryDialog> {
               for (var i = 0; i < 4; i++)
                 TextFormField(
                     controller: inputs[i],
+                    inputFormatters: [
+                      i > 1 ? AppNumericInput.decimal : AppNumericInput.digits
+                    ],
                     keyboardType:
                         TextInputType.numberWithOptions(decimal: i > 1),
                     decoration: InputDecoration(
@@ -549,14 +558,17 @@ class _FitnessEntryDialogState extends State<_FitnessEntryDialog> {
                           'Distance'
                         ][i],
                         suffixText: const ['', 'min', 'kcal', 'km'][i]),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (text) {
-                      if ((text ?? '').isEmpty) return null;
-                      final n = double.tryParse(text!);
-                      return n == null ||
-                              n < 0 ||
-                              n > [100000, 1440, 10000, 500][i]
-                          ? 'Invalid measurement'
-                          : null;
+                      final error = PatientMeasurementValidation.activity(text, i);
+                      if (error != null) return error;
+                      if (i == 0 && inputs.every((input) {
+                        final value = double.tryParse(input.text.trim());
+                        return value == null || value == 0;
+                      })) {
+                        return 'Enter at least one activity measurement.';
+                      }
+                      return null;
                     }),
             ]))),
         actions: [
@@ -569,7 +581,6 @@ class _FitnessEntryDialogState extends State<_FitnessEntryDialog> {
                 final n = inputs
                     .map((input) => double.tryParse(input.text) ?? 0)
                     .toList();
-                if (n.every((value) => value == 0)) return;
                 Navigator.pop(context, {
                   'steps': n[0].toInt(),
                   'activity_minutes': n[1].toInt(),
@@ -628,15 +639,14 @@ class _FitnessNumbersDialogState extends State<_FitnessNumbersDialog> {
               for (var i = 0; i < inputs.length; i++)
                 TextFormField(
                     controller: inputs[i],
+                    inputFormatters: [AppNumericInput.decimal],
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(labelText: widget.labels[i]),
-                    validator: (text) {
-                      final n = double.tryParse(text ?? '');
-                      return n == null || n <= 0 || n > widget.limits[i]
-                          ? 'Enter a valid measurement'
-                          : null;
-                    })
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (text) => widget.title == 'Update Weight'
+                        ? PatientMeasurementValidation.weight(text)
+                        : null)
             ])),
         actions: [
           TextButton(
@@ -654,7 +664,8 @@ class _FitnessNumbersDialogState extends State<_FitnessNumbersDialog> {
 }
 
 class _CompositionDialog extends StatefulWidget {
-  const _CompositionDialog();
+  final double? currentWeight;
+  const _CompositionDialog({this.currentWeight});
   @override
   State<_CompositionDialog> createState() => _CompositionDialogState();
 }
@@ -682,28 +693,23 @@ class _CompositionDialogState extends State<_CompositionDialog> {
                   'Save measured values separately. BMI uses height and weight.'),
               TextFormField(
                   controller: muscle,
+                  inputFormatters: [AppNumericInput.decimal],
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                       labelText: 'Skeletal muscle', suffixText: 'kg'),
-                  validator: (text) {
-                    final n = double.tryParse(text ?? '');
-                    return n == null || n <= 0 || n > 250
-                        ? 'Enter a valid value'
-                        : null;
-                  }),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (text) => PatientMeasurementValidation.muscle(
+                      text, currentWeight: widget.currentWeight)),
               TextFormField(
                   controller: fat,
+                  inputFormatters: [AppNumericInput.decimal],
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                       labelText: 'Body fat', suffixText: '%'),
-                  validator: (text) {
-                    final n = double.tryParse(text ?? '');
-                    return n == null || n < 0 || n > 100
-                        ? 'Enter 0–100%'
-                        : null;
-                  }),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: PatientMeasurementValidation.bodyFat),
             ])),
         actions: [
           TextButton(

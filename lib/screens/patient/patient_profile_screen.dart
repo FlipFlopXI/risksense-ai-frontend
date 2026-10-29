@@ -1,3 +1,5 @@
+import 'package:medguide/widgets/app_form_dialog.dart';
+import 'package:medguide/widgets/app_id_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -53,58 +55,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     }
   }
 
-  Future<void> _showId(String id) async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 350),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Patient ID',
-                    style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 6),
-                Text('Your RiskSense patient reference',
-                    style: TextStyle(color: AppColors.textSecondary)),
-                const SizedBox(height: 16),
-                SelectableText(id,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary)),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Back'),
-                    ),
-                    const Spacer(),
-                    FilledButton.icon(
-                      onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: id));
-                        if (!mounted || !dialogContext.mounted) return;
-                        Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Patient ID copied')),
-                        );
-                      },
-                      icon: const Icon(Icons.copy_rounded, size: 17),
-                      label: const Text('Copy ID'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Future<void> _showId(String id) =>
+      showAppIdDialog(context, title: 'Patient ID', id: id);
 
   Future<void> _signOut() async {
     VitalSync.instance.stop();
@@ -117,13 +69,33 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   Future<void> _showSubscriptionRenewal() async {
     final proceed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('Subscription'),
-        content: const Text('Open your website profile to review your subscription and choose whether to renew. This is a demonstration renewal; no payment is charged.'),
+      builder: (dialogContext) => AppFormDialog(
+        icon: Icons.autorenew_rounded,
+        title: const Text('Renew Subscription'),
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'Open your website profile to review your current subscription and choose whether to renew.'),
+              const SizedBox(height: 14),
+              Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border)),
+                  child: const Text(
+                      'This is a demonstration renewal. No payment is charged.')),
+            ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Exit')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Renew Subscription')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Exit')),
+          FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('Open Website')),
         ],
       ),
     );
@@ -135,11 +107,17 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
-        title: const Text('Website Unavailable'),
-        content: Text(error.toString()),
-        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
-      ));
+      await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+                title: const Text('Website Unavailable'),
+                content: Text(error.toString()),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Close'))
+                ],
+              ));
     }
   }
 
@@ -147,197 +125,219 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   Widget build(BuildContext context) {
     Theme.of(context);
     return AnimatedBuilder(
-      animation: AppPreferences.instance,
-      builder: (context, _) => Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: MedAppBar(
-                title: 'My Profile',
-                showSecureBadge: false,
-                actions: [
-                  IconButton(
-                      tooltip: 'Settings',
-                      icon: Icon(Icons.settings_outlined,
-                          color: AppColors.primaryBlue),
-                      onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  const SettingsScreen(role: 'patient'))))
-                ]),
-            body: FutureBuilder<Map<String, dynamic>>(
-              future: _profile,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done)
-                  return const Center(child: CircularProgressIndicator());
-                if (snapshot.hasError)
-                  return _ErrorState(
-                      message: snapshot.error.toString(),
-                      retry: () => setState(() => _profile = _load()));
-                final user = snapshot.data!['user'] as Map<String, dynamic>;
-                final patient =
-                    snapshot.data!['patient'] as Map<String, dynamic>;
-                final clinician =
-                    snapshot.data!['clinician'] as Map<String, dynamic>?;
-                final subscription =
-                    snapshot.data!['subscription'] as Map<String, dynamic>?;
-                final insurance =
-                    snapshot.data!['insurance'] as Map<String, dynamic>?;
-                final subscriptionExpiry = DateTime.tryParse(
-                    subscription?['expires_at']?.toString() ?? '');
-                final subscriptionActive =
-                    subscription?['status']?.toString().toLowerCase() == 'active';
-                final subscriptionExpired = subscriptionExpiry != null &&
-                    !subscriptionExpiry.isAfter(DateTime.now());
-                final expiringSoon = subscriptionActive &&
-                    subscriptionExpiry != null &&
-                    subscriptionExpiry.isAfter(DateTime.now()) &&
-                    subscriptionExpiry.isBefore(DateTime.now().add(const Duration(days: 7)));
-                final entitlements = snapshot.data!['entitlements'] as List;
-                final fullName = _titleCase(
-                    '${patient['first_name']} ${patient['last_name']}');
-                final gender =
-                    patient['gender']?.toString().trim().toLowerCase();
-                final female =
-                    gender == 'female' || gender == 'woman' || gender == 'f';
-                final active = entitlements.whereType<Map>().where((item) {
-                  if (item['status']?.toString().toUpperCase() != 'ACTIVE')
-                    return false;
-                  final expiry =
-                      DateTime.tryParse(item['expires_at']?.toString() ?? '');
-                  return expiry == null || expiry.isAfter(DateTime.now());
-                }).isNotEmpty;
-                return RefreshIndicator(
-                    onRefresh: () async {
-                      final next = _load();
-                      setState(() => _profile = next);
-                      await next;
-                    },
-                    child: ListView(
-                      padding: const EdgeInsets.all(20),
-                      children: [
-                        _IdentityCard(
-                            name: fullName,
-                            email: user['email'].toString(),
-                            female: female),
-                        const SizedBox(height: 16),
-                        _Section(title: 'Personal Details', children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Patient ID',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textSecondary)),
-                                InkWell(
-                                  onTap: () =>
-                                      _showId(patient['id'].toString()),
-                                  child: Text(
-                                    'Tap To View ID',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.primaryBlue,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          InfoRow(
-                              label: 'Date Of Birth',
-                              value: _date(patient['date_of_birth'])),
-                          InfoRow(
-                              label: 'Gender',
-                              value: _titleCase(patient['gender']?.toString() ??
-                                  'Not recorded')),
-                          InfoRow(
-                              label: 'Phone',
-                              value: patient['phone_number']?.toString() ??
-                                  'Not recorded'),
-                          InfoRow(
-                              label: 'Account',
-                              value: user['is_active'] == true
-                                  ? 'Active'
-                                  : 'Inactive'),
-                        ]),
-                        const SizedBox(height: 16),
-                        _Section(title: 'Access And Coverage', children: [
-                          InfoRow(
-                              label: 'Access Entitlement',
-                              value:
-                                  active ? 'Active' : 'No Active Entitlement'),
-                          if (subscriptionActive)
+        animation: AppPreferences.instance,
+        builder: (context, _) => Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: MedAppBar(
+                  title: 'My Profile',
+                  showSecureBadge: false,
+                  actions: [
+                    IconButton(
+                        tooltip: 'Settings',
+                        icon: Icon(Icons.settings_outlined,
+                            color: AppColors.primaryBlue),
+                        onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const SettingsScreen(role: 'patient'))))
+                  ]),
+              body: FutureBuilder<Map<String, dynamic>>(
+                future: _profile,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done)
+                    return const Center(child: CircularProgressIndicator());
+                  if (snapshot.hasError)
+                    return _ErrorState(
+                        message: snapshot.error.toString(),
+                        retry: () => setState(() => _profile = _load()));
+                  final user = snapshot.data!['user'] as Map<String, dynamic>;
+                  final patient =
+                      snapshot.data!['patient'] as Map<String, dynamic>;
+                  final clinician =
+                      snapshot.data!['clinician'] as Map<String, dynamic>?;
+                  final subscription =
+                      snapshot.data!['subscription'] as Map<String, dynamic>?;
+                  final insurance =
+                      snapshot.data!['insurance'] as Map<String, dynamic>?;
+                  final subscriptionExpiry = DateTime.tryParse(
+                      subscription?['expires_at']?.toString() ?? '');
+                  final subscriptionActive =
+                      subscription?['status']?.toString().toLowerCase() ==
+                          'active';
+                  final subscriptionExpired = subscriptionExpiry != null &&
+                      !subscriptionExpiry.isAfter(DateTime.now());
+                  final expiringSoon = subscriptionActive &&
+                      subscriptionExpiry != null &&
+                      subscriptionExpiry.isAfter(DateTime.now()) &&
+                      subscriptionExpiry.isBefore(
+                          DateTime.now().add(const Duration(days: 7)));
+                  final entitlements = snapshot.data!['entitlements'] as List;
+                  final fullName = _titleCase(
+                      '${patient['first_name']} ${patient['last_name']}');
+                  final gender =
+                      patient['gender']?.toString().trim().toLowerCase();
+                  final female =
+                      gender == 'female' || gender == 'woman' || gender == 'f';
+                  final active = entitlements.whereType<Map>().where((item) {
+                    if (item['status']?.toString().toUpperCase() != 'ACTIVE')
+                      return false;
+                    final expiry =
+                        DateTime.tryParse(item['expires_at']?.toString() ?? '');
+                    return expiry == null || expiry.isAfter(DateTime.now());
+                  }).isNotEmpty;
+                  return RefreshIndicator(
+                      onRefresh: () async {
+                        final next = _load();
+                        setState(() => _profile = next);
+                        await next;
+                      },
+                      child: ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: [
+                          _IdentityCard(
+                              name: fullName,
+                              email: user['email'].toString(),
+                              female: female),
+                          const SizedBox(height: 16),
+                          _Section(title: 'Personal Details', children: [
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(children: [
-                                Text('Subscription', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                                const Spacer(),
-                                ActionChip(
-                                  tooltip: 'View subscription renewal options',
-                                  avatar: Icon(Icons.autorenew_rounded, size: 18,
-                                      color: subscriptionExpired || expiringSoon ? Colors.deepOrange : Colors.green),
-                                  label: Text(subscriptionExpired ? 'Expired' : expiringSoon ? 'Expiring Soon' : 'Active'),
-                                  onPressed: _showSubscriptionRenewal,
-                                ),
-                              ]),
-                            )
-                          else
-                            InfoRow(label: 'Subscription', value: _titleCase(
-                                subscription?['status']?.toString() ?? 'Not requested')),
-                          if (subscription?['expires_at'] != null)
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Patient ID',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary)),
+                                  InkWell(
+                                    onTap: () =>
+                                        _showId(patient['id'].toString()),
+                                    child: Text(
+                                      'Tap To View ID',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.primaryBlue,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             InfoRow(
-                                label: 'Subscription Expires',
-                                value: _date(subscription!['expires_at'])),
-                          InfoRow(
-                              label: 'Insurance',
-                              value: _titleCase(
-                                  insurance?['provider_name']?.toString() ??
-                                      'Not provided')),
-                          if (insurance != null)
+                                label: 'Date Of Birth',
+                                value: _date(patient['date_of_birth'])),
                             InfoRow(
-                                label: 'Verification',
+                                label: 'Gender',
                                 value: _titleCase(
-                                    insurance['verification_status']
-                                            ?.toString() ??
-                                        'Not verified')),
-                        ]),
-                        const SizedBox(height: 16),
-                        _Section(title: 'My Clinician', children: [
-                          if (clinician == null)
-                            Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text('No Active Clinician Relationship.',
-                                    style: TextStyle(
-                                        color: AppColors.textSecondary)))
-                          else ...[
-                            InfoRow(
-                                label: 'Clinician',
-                                value: _titleCase(
-                                    clinician['display_name'].toString())),
-                            InfoRow(
-                                label: 'RiskSense ID',
-                                value: clinician['risk_sense_id'].toString()),
-                            InfoRow(
-                                label: 'Institution',
-                                value: _titleCase(
-                                    clinician['institution']?.toString() ??
+                                    patient['gender']?.toString() ??
                                         'Not recorded')),
-                          ]
-                        ]),
-                        const SizedBox(height: 24),
-                        OutlinedButton.icon(
-                            onPressed: _signOut,
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text('Sign Out'),
-                            style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.danger,
-                                side: BorderSide(color: AppColors.danger))),
-                      ],
-                    ));
-              },
-            ),
-          ));
+                            InfoRow(
+                                label: 'Phone',
+                                value: patient['phone_number']?.toString() ??
+                                    'Not recorded'),
+                            InfoRow(
+                                label: 'Account',
+                                value: user['is_active'] == true
+                                    ? 'Active'
+                                    : 'Inactive'),
+                          ]),
+                          const SizedBox(height: 16),
+                          _Section(title: 'Access And Coverage', children: [
+                            InfoRow(
+                                label: 'Access Entitlement',
+                                value: active
+                                    ? 'Active'
+                                    : 'No Active Entitlement'),
+                            if (subscriptionActive)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(children: [
+                                  Text('Subscription',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary)),
+                                  const Spacer(),
+                                  ActionChip(
+                                    tooltip:
+                                        'View subscription renewal options',
+                                    avatar: Icon(Icons.autorenew_rounded,
+                                        size: 18,
+                                        color:
+                                            subscriptionExpired || expiringSoon
+                                                ? Colors.deepOrange
+                                                : Colors.green),
+                                    label: Text(subscriptionExpired
+                                        ? 'Expired'
+                                        : expiringSoon
+                                            ? 'Expiring Soon'
+                                            : 'Active'),
+                                    onPressed: _showSubscriptionRenewal,
+                                  ),
+                                ]),
+                              )
+                            else
+                              InfoRow(
+                                  label: 'Subscription',
+                                  value: _titleCase(
+                                      subscription?['status']?.toString() ??
+                                          'Not requested')),
+                            if (subscription?['expires_at'] != null)
+                              InfoRow(
+                                  label: 'Subscription Expires',
+                                  value: _date(subscription!['expires_at'])),
+                            InfoRow(
+                                label: 'Insurance',
+                                value: _titleCase(
+                                    insurance?['provider_name']?.toString() ??
+                                        'Not provided')),
+                            if (insurance != null)
+                              InfoRow(
+                                  label: 'Verification',
+                                  value: _titleCase(
+                                      insurance['verification_status']
+                                              ?.toString() ??
+                                          'Not verified')),
+                          ]),
+                          const SizedBox(height: 16),
+                          _Section(title: 'My Clinician', children: [
+                            if (clinician == null)
+                              Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                      'No Active Clinician Relationship.',
+                                      style: TextStyle(
+                                          color: AppColors.textSecondary)))
+                            else ...[
+                              InfoRow(
+                                  label: 'Clinician',
+                                  value: _titleCase(
+                                      clinician['display_name'].toString())),
+                              InfoRow(
+                                  label: 'RiskSense ID',
+                                  value: clinician['risk_sense_id'].toString()),
+                              InfoRow(
+                                  label: 'Institution',
+                                  value: _titleCase(
+                                      clinician['institution']?.toString() ??
+                                          'Not recorded')),
+                            ]
+                          ]),
+                          const SizedBox(height: 24),
+                          OutlinedButton.icon(
+                              onPressed: _signOut,
+                              icon: const Icon(Icons.logout_rounded),
+                              label: const Text('Sign Out'),
+                              style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.danger,
+                                  side: BorderSide(color: AppColors.danger))),
+                        ],
+                      ));
+                },
+              ),
+            ));
   }
 
   String _date(dynamic value) {
@@ -366,30 +366,31 @@ class _IdentityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: female
-                  ? AppColors.femaleGradient
-                  : [AppColors.heroStart, AppColors.heroEnd]),
-          borderRadius: BorderRadius.circular(20)),
-      child: Row(children: [
-        const CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.person_rounded, color: Colors.white, size: 30)),
-        const SizedBox(width: 16),
-        Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700)),
-          Text(email, style: const TextStyle(color: Colors.white70))
-        ]))
-      ]));
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: female
+                    ? AppColors.femaleGradient
+                    : [AppColors.heroStart, AppColors.heroEnd]),
+            borderRadius: BorderRadius.circular(20)),
+        child: Row(children: [
+          const CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white24,
+              child: Icon(Icons.person_rounded, color: Colors.white, size: 30)),
+          const SizedBox(width: 16),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(name,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700)),
+                Text(email, style: const TextStyle(color: Colors.white70))
+              ]))
+        ]));
   }
 }
 
@@ -401,16 +402,16 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-          color: AppColors.cardWhite,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: Theme.of(context).textTheme.headlineSmall),
-        const Divider(height: 24),
-        ...children
-      ]));
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+            color: AppColors.cardWhite,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: Theme.of(context).textTheme.headlineSmall),
+          const Divider(height: 24),
+          ...children
+        ]));
   }
 }
 
@@ -422,14 +423,14 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     Theme.of(context);
     return Center(
-      child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.cloud_off_rounded, size: 42, color: AppColors.danger),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: retry, child: const Text('Try again'))
-          ])));
+        child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.cloud_off_rounded, size: 42, color: AppColors.danger),
+              const SizedBox(height: 12),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: retry, child: const Text('Try again'))
+            ])));
   }
 }

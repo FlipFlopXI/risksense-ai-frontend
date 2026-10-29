@@ -23,10 +23,18 @@ class RecordedConditions {
       if (normalized == 'diabetes' ||
           normalized == 'type 1 diabetes' ||
           normalized == 'type 2 diabetes' ||
-          normalized == 'diabetes (patient-reported diagnosis)') {
+          normalized == 'diabetes (patient-reported diagnosis)' ||
+          normalized == 'i have diabetes' ||
+          normalized == 'i have type 1 diabetes' ||
+          normalized == 'i have type 2 diabetes' ||
+          normalized == 'diagnosed with diabetes' ||
+          normalized == 'diagnosed with type 1 diabetes' ||
+          normalized == 'diagnosed with type 2 diabetes') {
         diabetes = true;
       } else if (normalized == 'heart disease' ||
-          normalized == 'heart disease (patient-reported diagnosis)') {
+          normalized == 'heart disease (patient-reported diagnosis)' ||
+          normalized == 'i have heart disease' ||
+          normalized == 'diagnosed with heart disease') {
         heartDisease = true;
       } else {
         other.add(item);

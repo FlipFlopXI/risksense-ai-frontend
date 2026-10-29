@@ -72,6 +72,49 @@ class FakeFitness implements FitnessDataSource {
 }
 
 void main() {
+  testWidgets('activity requires a value and weight and composition reject impossible entries', (tester) async {
+    final api = FakeFitness();
+    await tester.pumpWidget(MaterialApp(home: FitnessScreen(dashboard: const {}, dataSource: api)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Log activity'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter at least one activity measurement.'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).at(1), '1500');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter 0 to 1440 min.'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Body Metrics').first);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byTooltip('Update weight'), 150,
+      scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.byTooltip('Update weight'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, '2');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a measured weight from 25 to 350 kg.'), findsOneWidget);
+    expect(api.weight, 80);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Record body composition'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), '81');
+    await tester.enterText(fields.at(1), '25');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Skeletal muscle cannot exceed the recorded weight.'), findsOneWidget);
+    await tester.enterText(fields.at(0), '30');
+    await tester.enterText(fields.at(1), '81');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter body fat from 1% to 80%.'), findsOneWidget);
+    expect(api.composition, isNull);
+  });
   test('Weekly trends use latest readings and leave unrecorded weeks empty',
       () {
     final weeks = weeklyBodyTrend([

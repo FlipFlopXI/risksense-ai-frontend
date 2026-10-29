@@ -1,5 +1,8 @@
+import 'package:medguide/widgets/model_unavailable_dialog.dart';
+import 'package:medguide/widgets/app_form_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:medguide/screens/shared/prediction_result_screen.dart';
 import 'package:medguide/screens/shared/condition_trend_report_screen.dart';
 import 'package:medguide/services/api_client.dart';
@@ -115,14 +118,32 @@ class _DataInputScreenState extends State<DataInputScreen> {
         ApiClient.instance.get('/patients/me'),
         optional('/health/profile'),
         optional('/fitness/body'),
+        optional(
+            '/nutrition/metabolic/summary?day=${DateFormat('yyyy-MM-dd').format(DateTime.now())}'),
       ]);
       final patient = Map<String, dynamic>.from(results[0] as Map);
       final profile = results[1] as Map<String, dynamic>?;
       final fitnessBody = results[2] as Map<String, dynamic>?;
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final glucoseEntries =
+          (results[3] as Map<String, dynamic>?)?['entries'] as List? ??
+              const [];
+      final fastingToday = glucoseEntries
+          .whereType<Map>()
+          .where((entry) =>
+              entry['category'] == 'fasting' &&
+              entry['log_date']?.toString() == today &&
+              double.tryParse(entry['value']?.toString() ?? '') != null)
+          .toList();
+      fastingToday.sort((a, b) => (b['created_at']?.toString() ?? '')
+          .compareTo(a['created_at']?.toString() ?? ''));
       if (!mounted) return;
       setState(() {
         _patient = patient;
         _fitnessBody = fitnessBody;
+        if (_fastingGlucose.text.trim().isEmpty && fastingToday.isNotEmpty) {
+          _fastingGlucose.text = fastingToday.first['value'].toString();
+        }
         _profileExists = profile != null;
         _conditions = RecordedConditions.fromText(
             profile?['existing_conditions']?.toString());
@@ -283,7 +304,13 @@ class _DataInputScreenState extends State<DataInputScreen> {
                       .toList())));
       if (mounted) setState(() => _expanded.updateAll((key, value) => true));
     } on ApiException catch (error) {
-      if (mounted) _message(error.message, error: true);
+      if (!mounted) return;
+      if (isPausedModelError(error.statusCode, error.message, code: error.code)) {
+        await showModelUnavailableDialog(
+            context, _model == 'diabetes' ? 'Diabetes' : 'Heart Disease');
+      } else {
+        _message(error.message, error: true);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -303,9 +330,8 @@ class _DataInputScreenState extends State<DataInputScreen> {
     if (error) {
       showDialog<void>(
           context: context,
-          builder: (dialog) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+          builder: (dialog) => AppFormDialog(
+                  icon: Icons.error_outline_rounded,
                   title: const Text('Unable To Save Health Data'),
                   content: Text(value),
                   actions: [
@@ -515,7 +541,7 @@ class _DataInputScreenState extends State<DataInputScreen> {
                       AppColors.teal),
                   _field('Oxygen saturation', _oxygen, Icons.air_rounded,
                       AppColors.primaryBlue),
-                  _field('Temperature (Â°C)', _temperature,
+                  _field('Temperature (°C)', _temperature,
                       Icons.thermostat_rounded, AppColors.amber),
                 ]),
                 _section('Model laboratory inputs', Icons.science_rounded,
@@ -670,7 +696,7 @@ class _DataInputScreenState extends State<DataInputScreen> {
         : identical(c, _height)
             ? ('cm', 50.0, 250.0, false)
             : identical(c, _weight)
-                ? ('kg', 2.0, 350.0, false)
+                ? ('kg', 25.0, 350.0, false)
                 : identical(c, _waist)
                     ? ('cm', 30.0, 250.0, false)
                     : identical(c, _systolic)
@@ -682,7 +708,7 @@ class _DataInputScreenState extends State<DataInputScreen> {
                                 : identical(c, _oxygen)
                                     ? ('%', 50.0, 100.0, false)
                                     : identical(c, _temperature)
-                                        ? ('Â°C', 30.0, 43.0, false)
+                                        ? ('°C', 30.0, 43.0, false)
                                         : identical(c, _fastingGlucose)
                                             ? ('mg/dL', 20.0, 600.0, false)
                                             : ('mg/dL', 50.0, 600.0, false);
@@ -739,22 +765,22 @@ class _DataInputScreenState extends State<DataInputScreen> {
                   final value = v?.trim() ?? '';
                   if (value.isEmpty) {
                     return required || neededForDemo
-                        ? 'Required for this analysis'
+                        ? 'Enter ${label.split(' (').first.toLowerCase()} for this analysis.'
                         : null;
                   }
                   final number = double.tryParse(value);
                   if (number == null ||
                       !number.isFinite ||
                       (config.$4 && int.tryParse(value) == null)) {
-                    return 'Enter a valid ${config.$4 ? 'whole number' : 'number'}';
+                    return 'Enter a valid ${config.$4 ? 'whole number' : 'number'} for ${label.split(' (').first.toLowerCase()}.';
                   }
                   if (number < config.$2 || number > config.$3) {
-                    return 'Enter ${config.$2.toStringAsFixed(0)}â€“${config.$3.toStringAsFixed(0)} ${config.$1}';
+                    return 'Enter a value from ${config.$2.toStringAsFixed(0)} to ${config.$3.toStringAsFixed(0)} ${config.$1}.';
                   }
                   if (identical(c, _diastolic) &&
                       _number(_systolic) != null &&
                       number >= _number(_systolic)!) {
-                    return 'Must be lower than systolic BP';
+                    return 'Diastolic pressure must be lower than systolic pressure.';
                   }
                   return null;
                 })));

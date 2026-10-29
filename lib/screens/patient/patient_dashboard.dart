@@ -46,8 +46,31 @@ class _PatientDashboardState extends State<PatientDashboard> {
   int _currentIndex = 0;
   int _healthEpoch = 0;
   int _historyEpoch = 0;
+  int _homeEpoch = 0;
   final _visitedTabs = <int>{0};
   RiskLevelFilter _historyInitialLevel = RiskLevelFilter.all;
+  String? _latestNoticeId;
+  String? _noticeKey;
+  String? _viewedNoticeId;
+  static const _noticeStorage = FlutterSecureStorage();
+
+  void _noticeLoaded(String? id, String? key) {
+    if (_latestNoticeId == id && _noticeKey == key) {
+      return;
+    }
+    setState(() {
+      _latestNoticeId = id;
+      _noticeKey = key;
+    });
+  }
+
+  Future<void> _predictionViewed(String id) async {
+    if (id != _latestNoticeId || _noticeKey == null) return;
+    setState(() => _viewedNoticeId = id);
+    try {
+      await _noticeStorage.write(key: _noticeKey!, value: id);
+    } catch (_) {/* Keep the badge cleared for this session. */}
+  }
 
   void _openRiskHistory(RiskLevelFilter level) => setState(() {
         _historyInitialLevel = level;
@@ -67,7 +90,11 @@ class _PatientDashboardState extends State<PatientDashboard> {
     final pages = <Widget>[
       _visitedTabs.contains(0)
           ? _HomeTab(
+              refreshEpoch: _homeEpoch,
               onRiskNotice: _openRiskHistory,
+              onNoticeLoaded: _noticeLoaded,
+              onPredictionViewed: _predictionViewed,
+              viewedNoticeId: _viewedNoticeId,
               onMetricsUpdated: _metricsUpdated,
               previewData: widget.previewData,
               previewNutrition: widget.previewNutrition,
@@ -80,7 +107,9 @@ class _PatientDashboardState extends State<PatientDashboard> {
           : const SizedBox.shrink(),
       _visitedTabs.contains(2)
           ? HistoryScreen(
-              key: ValueKey(_historyEpoch), initialLevel: _historyInitialLevel)
+              key: ValueKey(_historyEpoch),
+              initialLevel: _historyInitialLevel,
+              onPredictionViewed: _predictionViewed)
           : const SizedBox.shrink(),
       _visitedTabs.contains(3)
           ? const AiAssistantScreen()
@@ -102,6 +131,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: (i) => setState(() {
+              if (i == 0 && _currentIndex != 0) _homeEpoch++;
               _currentIndex = i;
               _visitedTabs.add(i);
               _historyInitialLevel = RiskLevelFilter.all;
@@ -150,7 +180,11 @@ class _PatientDashboardState extends State<PatientDashboard> {
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 class _HomeTab extends StatefulWidget {
+  final int refreshEpoch;
   final ValueChanged<RiskLevelFilter> onRiskNotice;
+  final void Function(String?, String?) onNoticeLoaded;
+  final ValueChanged<String> onPredictionViewed;
+  final String? viewedNoticeId;
   final VoidCallback onMetricsUpdated;
   final Map<String, dynamic>? previewData;
   final NutritionDataSource? previewNutrition;
@@ -158,7 +192,11 @@ class _HomeTab extends StatefulWidget {
   final FitnessDataSource? previewFitness;
   final MindfulnessDataSource? previewMindfulness;
   const _HomeTab(
-      {required this.onRiskNotice,
+      {required this.refreshEpoch,
+      required this.onRiskNotice,
+      required this.onNoticeLoaded,
+      required this.onPredictionViewed,
+      this.viewedNoticeId,
       required this.onMetricsUpdated,
       this.previewData,
       this.previewNutrition,
@@ -180,7 +218,30 @@ class _HomeTabState extends State<_HomeTab> {
         ? await _load()
         : Map<String, dynamic>.from(widget.previewData!);
     _lastDashboard = data;
+    final rows = (data['latest_predictions'] as List? ?? const [])
+        .whereType<Map>()
+        .toList();
+    rows.sort((a, b) =>
+        (DateTime.tryParse(b['predicted_at']?.toString() ?? '') ??
+                DateTime(1970))
+            .compareTo(DateTime.tryParse(a['predicted_at']?.toString() ?? '') ??
+                DateTime(1970)));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.onNoticeLoaded(
+            rows.isEmpty ? null : rows.first['id']?.toString(),
+            data['_notice_key']?.toString());
+      }
+    });
     return data;
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshEpoch != widget.refreshEpoch) {
+      _dashboard = _loadDashboard();
+    }
   }
 
   @override
@@ -284,7 +345,8 @@ class _HomeTabState extends State<_HomeTab> {
     final showNotice = AppPreferences.instance.riskAlerts &&
         noticeLevel != null &&
         noticeId != null &&
-        noticeId != data['_seen_prediction'];
+        noticeId != data['_seen_prediction'] &&
+        noticeId != widget.viewedNoticeId;
     final diabetesScore = (diabetes?['risk_score'] as num?)?.toDouble();
     final heartScore = (heart?['risk_score'] as num?)?.toDouble();
     final updated =
@@ -321,15 +383,8 @@ class _HomeTabState extends State<_HomeTab> {
               child: Icon(Icons.notifications_outlined,
                   color: AppColors.primaryBlue, size: 22),
             ),
-            onPressed: () async {
-              if (showNotice) {
-                await _noticeStorage.write(
-                    key: data['_notice_key'].toString(), value: noticeId);
-                if (!mounted) return;
-                setState(() => data['_seen_prediction'] = noticeId);
-              }
-              widget.onRiskNotice(noticeLevel ?? RiskLevelFilter.all);
-            },
+            onPressed: () =>
+                widget.onRiskNotice(noticeLevel ?? RiskLevelFilter.all),
           ),
           const WearableSyncButton(),
           const ScreenHelpButton(topic: 'Dashboard'),
@@ -430,7 +485,12 @@ class _HomeTabState extends State<_HomeTab> {
                               child: GestureDetector(
                                 onTap: diabetesScore == null
                                     ? null
-                                    : () => Navigator.of(context)
+                                    : () {
+                                        if (diabetes?['id'] != null) {
+                                          widget.onPredictionViewed(
+                                              diabetes!['id'].toString());
+                                        }
+                                        Navigator.of(context)
                                             .push(MaterialPageRoute(
                                           builder: (_) => PredictionResultScreen(
                                               condition: 'Diabetes',
@@ -455,7 +515,8 @@ class _HomeTabState extends State<_HomeTab> {
                                                           Map<String, dynamic>.from(
                                                               item))
                                                       .toList()),
-                                        )),
+                                        ));
+                                      },
                                 child: RiskMeterWidget(
                                     label: 'Diabetes',
                                     percent: diabetesScore ?? 0),
@@ -467,7 +528,12 @@ class _HomeTabState extends State<_HomeTab> {
                               child: GestureDetector(
                                 onTap: heartScore == null
                                     ? null
-                                    : () => Navigator.of(context)
+                                    : () {
+                                        if (heart?['id'] != null) {
+                                          widget.onPredictionViewed(
+                                              heart!['id'].toString());
+                                        }
+                                        Navigator.of(context)
                                             .push(MaterialPageRoute(
                                           builder: (_) => PredictionResultScreen(
                                               condition: 'Heart Disease',
@@ -492,7 +558,8 @@ class _HomeTabState extends State<_HomeTab> {
                                                           Map<String, dynamic>.from(
                                                               item))
                                                       .toList()),
-                                        )),
+                                        ));
+                                      },
                                 child: RiskMeterWidget(
                                     label: 'Heart Disease',
                                     percent: heartScore ?? 0),
@@ -519,7 +586,7 @@ class _HomeTabState extends State<_HomeTab> {
               height: 52,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.analytics_outlined, size: 20),
-                label: const Text('Update Health Metrics'),
+                label: const Text('Health Metrics & Risk Analysis'),
                 onPressed: () async {
                   await Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const DataInputScreen()),
