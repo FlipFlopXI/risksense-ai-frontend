@@ -26,7 +26,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
       text:
-          'Hello, I’m your RiskSense AI Assistant. Ask about a named medication for reviewed educational information, or ask me to "show my health trends" for a summary of your recorded measurements. To save a medication, use this format: add medication name + routine + dosage. For example, type "add medication metformin + every morning + 500 mg". Put a + between the medication name, routine, and dosage. The routine and dosage are optional: "add medication metformin" also works. Type "view medication" to see your list, or "remove medication + metformin" to remove one. I cannot diagnose or prescribe.',
+          'Hello, I’m your RiskSense AI Assistant. Ask about a named medication for educational information with source links, or ask me to "show my health trends" for a summary of your recorded measurements. To save a medication, use this format: add medication name + routine + dosage. For example, type "add medication metformin + every morning + 500 mg". Put a + between the medication name, routine, and dosage. The routine and dosage are optional: "add medication metformin" also works. Type "view medication" to see your list, or "remove medication + metformin" to remove one. I cannot diagnose or prescribe.',
       isUser: false,
     ),
   ];
@@ -66,7 +66,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   _ChatMessage get _welcomeMessage => const _ChatMessage(
       text:
-          'Hello, I’m your RiskSense AI Assistant. Ask about a named medication for reviewed educational information, or ask me to "show my health trends" for a summary of your recorded measurements. To save a medication, use this format: add medication name + routine + dosage. For example, type "add medication metformin + every morning + 500 mg". Put a + between the medication name, routine, and dosage. The routine and dosage are optional: "add medication metformin" also works. Type "view medication" to see your list, or "remove medication + metformin" to remove one. I cannot diagnose or prescribe.',
+          'Hello, I’m your RiskSense AI Assistant. Ask about a named medication for educational information with source links, or ask me to "show my health trends" for a summary of your recorded measurements. To save a medication, use this format: add medication name + routine + dosage. For example, type "add medication metformin + every morning + 500 mg". Put a + between the medication name, routine, and dosage. The routine and dosage are optional: "add medication metformin" also works. Type "view medication" to see your list, or "remove medication + metformin" to remove one. I cannot diagnose or prescribe.',
       isUser: false);
 
   Future<void> _restoreChat() async {
@@ -184,7 +184,11 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       _sessionId = response['session_id']?.toString();
       final summary = response['summary']?.toString() ??
           'No reviewed information is available for this enquiry.';
-      final safety = response['safety_message']?.toString();
+      final referenceNotice = response['reference_notice']?.toString();
+      final rawSafety = response['safety_message']?.toString();
+      final safety = referenceNotice == null
+          ? rawSafety
+          : rawSafety?.replaceAll(referenceNotice, '').trim();
       final status = response['evidence_status']?.toString();
       final claims = (response['claims'] as List<dynamic>? ?? const [])
           .whereType<Map>()
@@ -207,6 +211,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 : '$answer\n\n$safety',
             isUser: false,
             evidenceStatus: status,
+            referenceNotice: referenceNotice,
             sources: sources));
       });
     } on ApiException catch (error) {
@@ -519,11 +524,13 @@ class _ChatMessage {
   final String text;
   final bool isUser;
   final String? evidenceStatus;
+  final String? referenceNotice;
   final List<String> sources;
   const _ChatMessage({
     required this.text,
     required this.isUser,
     this.evidenceStatus,
+    this.referenceNotice,
     this.sources = const [],
   });
 
@@ -531,6 +538,7 @@ class _ChatMessage {
         text: value['text']?.toString() ?? '',
         isUser: value['is_user'] == true,
         evidenceStatus: value['evidence_status']?.toString(),
+        referenceNotice: value['reference_notice']?.toString(),
         sources: (value['sources'] as List? ?? const [])
             .whereType<String>()
             .toList(),
@@ -540,6 +548,7 @@ class _ChatMessage {
         'text': text,
         'is_user': isUser,
         'evidence_status': evidenceStatus,
+        'reference_notice': referenceNotice,
         'sources': sources,
       };
 }
@@ -579,7 +588,9 @@ class _MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!message.isUser && message.evidenceStatus != null) ...[
+            if (!message.isUser &&
+                message.evidenceStatus != null &&
+                message.evidenceStatus != 'REFERENCE_INFORMATION') ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -609,6 +620,23 @@ class _MessageBubble extends StatelessWidget {
                 color: message.isUser ? Colors.white : AppColors.textPrimary,
               ),
             ),
+            if (message.referenceNotice != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                      child: Text(message.referenceNotice!,
+                          style: TextStyle(
+                              fontSize: 11,
+                              height: 1.4,
+                              color: AppColors.textSecondary))),
+                ],
+              ),
+            ],
             if (message.sources.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text('Sources',
